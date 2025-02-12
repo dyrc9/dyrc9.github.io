@@ -1,270 +1,30 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  
-  
-  <title>Hexo</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-  <meta property="og:type" content="website">
-<meta property="og:title" content="Hexo">
-<meta property="og:url" content="http://example.com/index.html">
-<meta property="og:site_name" content="Hexo">
-<meta property="og:locale" content="en_US">
-<meta property="article:author" content="John Doe">
-<meta name="twitter:card" content="summary">
-  
-    <link rel="alternate" href="/atom.xml" title="Hexo" type="application/atom+xml">
-  
-  
-    <link rel="shortcut icon" href="/favicon.png">
-  
-  
-  
-<link rel="stylesheet" href="/css/style.css">
+doctype html
+html(lang= config.language)
+  //- html head html头部信息 
+  head
+    | !{ partial('_partial/head', null, {cache: false}) }
 
-  
+  //- html body html主体
+  body
+    //- header bar at the top 顶部页眉信息
+    | !{ partial('_partial/header', null, {cache: false}) }
     
-<link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
+    //- blog's information display 博客信息展示
+    | !{ partial('_partial/blog-info', null, {cache: false}) }
 
-  
-  
-<meta name="generator" content="Hexo 7.3.0"></head>
+    //- page's main part 页面主题部分
+    .main
+      .main-content !{ body }
 
-<body>
-  <div id="container">
-    <div id="wrap">
-      <header id="header">
-  <div id="banner"></div>
-  <div id="header-outer" class="outer">
-    <div id="header-title" class="inner">
-      <h1 id="logo-wrap">
-        <a href="/" id="logo">Hexo</a>
-      </h1>
-      
-    </div>
-    <div id="header-inner" class="inner">
-      <nav id="main-nav">
-        <a id="main-nav-toggle" class="nav-icon"><span class="fa fa-bars"></span></a>
-        
-          <a class="main-nav-link" href="/">Home</a>
-        
-          <a class="main-nav-link" href="/archives">Archives</a>
-        
-      </nav>
-      <nav id="sub-nav">
-        
-        
-          <a class="nav-icon" href="/atom.xml" title="RSS Feed"><span class="fa fa-rss"></span></a>
-        
-        <a class="nav-icon nav-search-btn" title="Search"><span class="fa fa-search"></span></a>
-      </nav>
-      <div id="search-form-wrap">
-        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="http://example.com"></form>
-      </div>
-    </div>
-  </div>
-</header>
+    //- toolbar float on screen 悬浮工具栏
+    | !{ partial('_partial/tool-bar', null, {cache: false}) }
 
-      <div class="outer">
-        <section id="main">
-  
-    <article id="post-Reinforcement-Learning-notes" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  <div class="article-meta">
-    <a href="/2025/02/12/Reinforcement-Learning-notes/" class="article-date">
-  <time class="dt-published" datetime="2025-02-12T08:30:43.000Z" itemprop="datePublished">2025-02-12</time>
-</a>
-    
-  </div>
-  <div class="article-inner">
-    
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="p-name article-title" href="/2025/02/12/Reinforcement-Learning-notes/">Reinforcement Learning notes</a>
-    </h1>
-  
+    //- search panel 搜索面板
+    if config.search
+      | !{ partial('_partial/search', null, {cache: false}) }
 
-      </header>
-    
-    <div class="e-content article-entry" itemprop="articleBody">
-      
-        <h1 id="Reinforcement-Learning-Notes"><a href="#Reinforcement-Learning-Notes" class="headerlink" title="Reinforcement Learning Notes"></a>Reinforcement Learning Notes</h1><h2 id="多臂老虎机"><a href="#多臂老虎机" class="headerlink" title="多臂老虎机"></a>多臂老虎机</h2><p>增量式更新<br>$$\begin{aligned}<br>N(a_t) &amp;&#x3D; N(a_t)+1\<br>\hat{Q}  &amp;&#x3D; \hat{Q} (a_t) + {1 \over N(a_t)}[r_t-\hat{Q}(a_t)]<br>\end{aligned} $$</p>
-<h2 id="马尔可夫奖励过程MRP"><a href="#马尔可夫奖励过程MRP" class="headerlink" title="马尔可夫奖励过程MRP"></a>马尔可夫奖励过程MRP</h2><p>由四部分组成$&lt;S,P,r,\gamma&gt;$ </p>
-<ul>
-<li>状态集</li>
-<li>状态转移矩阵 </li>
-<li>r(s)转移到s状态可获奖励的期望</li>
-<li>衰减因子 惩罚未来获得的奖励</li>
-</ul>
-<p>回报$$G_t&#x3D;R_t+\gamma R_{t+1}+\gamma ^2R_{t+2}+\cdots&#x3D;\Sigma_{k&#x3D;0}^{\infty}\gamma^kR_{t+k}$$</p>
-<p>价值 价值函数$$V(s)&#x3D;\mathbb{E}(G_t|S_t&#x3D;s)$$</p>
-<p>展开上式得<strong>贝尔曼方程(Bellman equation)</strong><br>$$V(s)&#x3D;r(s)+\gamma \Sigma_{s’\in S}P(s’|s)V(s’)$$</p>
-<p>采用矩阵表示 所有状态价值$\mathbf{V}&#x3D;[V(s_1), V(s_2), \cdots]^T$，奖励$\mathbf{R}&#x3D;[r(s_1),r(s_2),\cdots]^T$，则有<br>$$\mathbf{V}&#x3D;\mathbf{R}+\gamma P\mathbf{V}$$</p>
-<p>价值有解析解$$\mathbf{V}&#x3D;(I-\gamma P)^{-1}\mathbf{R}$$<br>该解析解在计算上有$O(n^3)$复杂度</p>
-<h2 id="马尔可夫决策过程-MDP"><a href="#马尔可夫决策过程-MDP" class="headerlink" title="马尔可夫决策过程 MDP"></a>马尔可夫决策过程 MDP</h2><p>$&lt;S,A,P,r,\gamma&gt;$</p>
-<p>A:动作的集合。P变成$P(s’|s,a)$同时r变成$r(s,a)$</p>
-<p>引入策略$\pi(s,a)&#x3D;P(A_t&#x3D;a|S_t&#x3D;s)$</p>
-<p>最为重要的两个函数</p>
-<ul>
-<li>状态价值函数$V^{\pi}(s)&#x3D;\mathbb{E}[G_t|S_t&#x3D;s]$</li>
-<li>动作价值函数$Q^{\pi}(s,a)&#x3D;\mathbb{E}[G_t|S_t&#x3D;s, A_t&#x3D;a]$</li>
-</ul>
-<p>两者有关系$V^{\pi}(s)&#x3D;\Sigma_{a\in A}\pi(a|s)Q^{\pi}(s,a)$，该式即指在状态s下采用所有行动的概率与该行动的价值函数相乘之和，也是期望的一种形式。反过来说，某动作也可采用前述贝尔曼方程展开得到采用V的表示，即$Q^{\pi}(s,a)&#x3D;r(s,a)+\gamma \Sigma _{a\in A}P(s’|s,a)V^{\pi}(s’)$</p>
-<p>贝尔曼期望方程</p>
+    //- footer information at the bottom 底部页脚信息
+    | !{ partial('_partial/footer', null, {cache: false}) }
 
-      
-    </div>
-    <footer class="article-footer">
-      <a data-url="http://example.com/2025/02/12/Reinforcement-Learning-notes/" data-id="cm71nje4x00001jqv428s9zc9" data-title="Reinforcement Learning notes" class="article-share-link"><span class="fa fa-share">Share</span></a>
-      
-      
-      
-    </footer>
-  </div>
-  
-</article>
-
-
-
-  
-    <article id="post-hello-world" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  <div class="article-meta">
-    <a href="/2025/02/12/hello-world/" class="article-date">
-  <time class="dt-published" datetime="2025-02-12T07:57:57.538Z" itemprop="datePublished">2025-02-12</time>
-</a>
-    
-  </div>
-  <div class="article-inner">
-    
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="p-name article-title" href="/2025/02/12/hello-world/">Hello World</a>
-    </h1>
-  
-
-      </header>
-    
-    <div class="e-content article-entry" itemprop="articleBody">
-      
-        <p>Welcome to <a target="_blank" rel="noopener" href="https://hexo.io/">Hexo</a>! This is your very first post. Check <a target="_blank" rel="noopener" href="https://hexo.io/docs/">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a target="_blank" rel="noopener" href="https://hexo.io/docs/troubleshooting.html">troubleshooting</a> or you can ask me on <a target="_blank" rel="noopener" href="https://github.com/hexojs/hexo/issues">GitHub</a>.</p>
-<h2 id="Quick-Start"><a href="#Quick-Start" class="headerlink" title="Quick Start"></a>Quick Start</h2><h3 id="Create-a-new-post"><a href="#Create-a-new-post" class="headerlink" title="Create a new post"></a>Create a new post</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo new <span class="string">&quot;My New Post&quot;</span></span><br></pre></td></tr></table></figure>
-
-<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/writing.html">Writing</a></p>
-<h3 id="Run-server"><a href="#Run-server" class="headerlink" title="Run server"></a>Run server</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo server</span><br></pre></td></tr></table></figure>
-
-<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/server.html">Server</a></p>
-<h3 id="Generate-static-files"><a href="#Generate-static-files" class="headerlink" title="Generate static files"></a>Generate static files</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo generate</span><br></pre></td></tr></table></figure>
-
-<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/generating.html">Generating</a></p>
-<h3 id="Deploy-to-remote-sites"><a href="#Deploy-to-remote-sites" class="headerlink" title="Deploy to remote sites"></a>Deploy to remote sites</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo deploy</span><br></pre></td></tr></table></figure>
-
-<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/one-command-deployment.html">Deployment</a></p>
-
-      
-    </div>
-    <footer class="article-footer">
-      <a data-url="http://example.com/2025/02/12/hello-world/" data-id="cm71mddk60000ubqv3th6arup" data-title="Hello World" class="article-share-link"><span class="fa fa-share">Share</span></a>
-      
-      
-      
-    </footer>
-  </div>
-  
-</article>
-
-
-
-  
-
-
-</section>
-        
-          <aside id="sidebar">
-  
-    
-
-  
-    
-
-  
-    
-  
-    
-  <div class="widget-wrap">
-    <h3 class="widget-title">Archives</h3>
-    <div class="widget">
-      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2025/02/">February 2025</a></li></ul>
-    </div>
-  </div>
-
-
-  
-    
-  <div class="widget-wrap">
-    <h3 class="widget-title">Recent Posts</h3>
-    <div class="widget">
-      <ul>
-        
-          <li>
-            <a href="/2025/02/12/Reinforcement-Learning-notes/">Reinforcement Learning notes</a>
-          </li>
-        
-          <li>
-            <a href="/2025/02/12/hello-world/">Hello World</a>
-          </li>
-        
-      </ul>
-    </div>
-  </div>
-
-  
-</aside>
-        
-      </div>
-      <footer id="footer">
-  
-  <div class="outer">
-    <div id="footer-info" class="inner">
-      
-      &copy; 2025 John Doe<br>
-      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
-    </div>
-  </div>
-</footer>
-
-    </div>
-    <nav id="mobile-nav">
-  
-    <a href="/" class="mobile-nav-link">Home</a>
-  
-    <a href="/archives" class="mobile-nav-link">Archives</a>
-  
-</nav>
-    
-
-
-<script src="/js/jquery-3.6.4.min.js"></script>
-
-
-
-  
-<script src="/fancybox/jquery.fancybox.min.js"></script>
-
-
-
-
-<script src="/js/script.js"></script>
-
-
-
-
-
-  </div>
-</body>
-</html>
+    //- link other resources at the end of the page 在页面最后引入其它资源
+    | !{ partial('_partial/other-resources', null, {cache: false}) }
