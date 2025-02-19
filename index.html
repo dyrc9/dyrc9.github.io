@@ -143,7 +143,7 @@ mjx-container[display="true"] + br {
 };
 var darkMode = new DarkMode(options);
 // change comment theme synchronously 同步修改评论区主题
-if (darkMode.getMode() == "dark" && ( || )) {
+if (darkMode.getMode() == "dark" && (true || true)) {
   if (document.getElementById('comment')) {
     document.getElementById('comment').getElementsByTagName('script')[0].setAttribute('data-theme', 'noborder_dark');
   }
