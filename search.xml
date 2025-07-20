@@ -4,6 +4,19 @@
   
     
     <entry>
+      <title>RL notes 2</title>
+      <link href="/2025/07/20/RL-notes-2/"/>
+      <url>/2025/07/20/RL-notes-2/</url>
+      
+        <content type="html"><![CDATA[<h2 id="基础算法"><a href="#基础算法" class="headerlink" title="基础算法"></a>基础算法</h2><h3 id="动态规划"><a href="#动态规划" class="headerlink" title="动态规划"></a>动态规划</h3><p>基于动态规划的强化学习算法适用于白盒环境，事先知道P（状态转移矩阵）与r（reward），不需要进行交互。</p><p>动态规划分为两步</p><ul><li>策略迭代<ul><li>策略评估 $$V(s) \leftarrow r(s,\pi(s))+\gamma \sum_{s’}{P(s’|s, \pi(s))V(s’)} $$</li><li>策略提升 $$\pi(s) \leftarrow argmax_a r(s,a)+\gamma \sum_{s’}{P(s’|s, \pi(s))V(s’)}$$</li></ul></li><li>价值迭代 $$V(s) \leftarrow max_a {r(s,a)+\gamma \sum_{s’}{P(s’|s, \pi(s))V(s’)}}$$ 不显式更新策略$\pi$</li></ul><p>价值迭代采用了Bellman Optimality Equation</p><h3 id="时序差分"><a href="#时序差分" class="headerlink" title="时序差分"></a>时序差分</h3><p>TD: temporal difference基于时序差分的强化学习算法<br>并不事先知道P，需要和环境交互</p><ul><li>Sarsa 名字由来为用到了$s, a, r, s, a’$<ul><li>$Q(s,a) \leftarrow Q(s,a)+\alpha [r+\gamma Q(s’,a’) - Q(s,a)]$</li><li>采用$\epsilon-greedy$策略选择a及a’ 防止有些动作从未出现过</li><li>更为保守 （悬崖上倾向于离悬崖更远走）</li></ul></li><li>Q-learning <ul><li>$Q(s,a) \leftarrow Q(s,a)+\alpha [r+\gamma maxQ(s’,a’) - Q(s,a)]$</li><li>只采用$\epsilon-greedy$策略选择a而不选择a’</li></ul></li></ul><p>在这一节定义了在线和离线策略学习</p><ul><li>在线策略学习 on-policy 自来水 sarsa</li><li>离线策略学习 off-policy 脸盆 具有更小的样本复杂度 Q-learning</li></ul><p>采用数据的策略为行为策略(behavior policy) 更新的策略为目标策略(target policy)</p><p>当行为策略与目标策略一致时即为在线策略 不一致时即为离线策略</p><h3 id="Dyna-Q"><a href="#Dyna-Q" class="headerlink" title="Dyna-Q"></a>Dyna-Q</h3><p>基于模型但是环境模型通过采样估计得到 由Q-learning+Q-planning得到<br>略</p><h2 id="进阶算法"><a href="#进阶算法" class="headerlink" title="进阶算法"></a>进阶算法</h2><h3 id="DQN-深度强化学习的开端"><a href="#DQN-深度强化学习的开端" class="headerlink" title="DQN 深度强化学习的开端"></a>DQN 深度强化学习的开端</h3><p>DQN: Deep Q Network<br>前述方法均采用表格的形式记录Q 一个s,a对对应一个价值Q 仅适用于离散有限情况<br>采用神经网络表示Q 无限s,a对 由更新Q变为训练Q<br>Q-Learning: $Q(s,a) \leftarrow Q(s,a)+\alpha [r+\gamma \max_{a’ \in A} Q(s’,a’) - Q(s,a)]$</p><p>即定义Q网络损失函数 $$w^* &#x3D; \arg \min_{w}{\frac{1}{2N} \sum_{i&#x3D;1}^N[Q_w(s_i,a_i)-(r_i+\gamma \max_{a’ \in A} Q_w(s_i’,a’))]^2} $$</p><p>DQN还有两个关键模块</p><ul><li>经验回放——使样本满足独立假设<ul><li>非独立同分布的数据对训练神经网络影响大</li><li>MDP交互数据：该时刻的状态与上时刻有关</li><li>事实上这一手段并没有完全解决独立同分布的问题 只是缓解</li></ul></li><li>目标网络<ul><li>解决不稳定问题——目标包括输出</li><li>自举效应（Bootstrapping）</li><li>采用两个网络分别计算$Q_w(s_i,a_i)$与$r_i+\gamma \max_{a’ \in A} Q(s_i’,a’))$——训练网络$Q_w$与目标网络$Q_{w^-}$</li></ul></li></ul><p>DQN的改进：</p><ul><li>Double DQN<ul><li>DQN对Q有过高估计overestimaion</li><li>使动作选取依靠训练网络 将$\max_{a’ \in A} Q_{w^-}(s_i’,a’)$替换为$\max_{a’ \in A} Q_{w^-}(s_i’, \arg \max_{a’}Q_w(s’,a’))$</li></ul></li><li><h2 id="Dueling-DQN-定义优势函数-将V与A分别建模"><a href="#Dueling-DQN-定义优势函数-将V与A分别建模" class="headerlink" title="Dueling DQN  - 定义优势函数  - 将V与A分别建模"></a>Dueling DQN<br>  - 定义优势函数<br>  - 将V与A分别建模</h2></li></ul><h3 id="策略梯度-由基于价值到基于策略"><a href="#策略梯度-由基于价值到基于策略" class="headerlink" title="策略梯度 由基于价值到基于策略"></a>策略梯度 由基于价值到基于策略</h3><p>策略学习目标函数 $J(\theta)&#x3D;\mathbb{E}(V^{\pi_\theta}(s_0))$</p><p>策略梯度定理 $$\nabla J(\theta) \propto \sum_{s \in S} v^{\pi_{\theta}}(s)\sum_{a \in A}Q^{\pi_\theta}(s,a) \nabla_\theta \pi_\theta(a|s)$$</p><p>将V与Q的关系代入上式$$上式&#x3D;\mathbb{E}[Q^{\pi_\theta}(s,a) \nabla_\theta \log \pi_\theta(a|s)]$$</p><p>采样与更新一致 属于在线策略</p><p>关键是要对$Q^{\pi_\theta}(s,a)$进行估计 用蒙特卡洛方法进行估计——REINFORCE</p>]]></content>
+      
+      
+      
+    </entry>
+    
+    
+    
+    <entry>
       <title>MIG_research</title>
       <link href="/2025/02/19/MIG-research/"/>
       <url>/2025/02/19/MIG-research/</url>
