@@ -1,17 +1,17 @@
-<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="author" content="Wu De"/><meta name="keyword"/><meta name="description" content="MIG researchMIG overviewMIG全称Multi-instance GPU 多实例GPU技术 (MIG) 提供了更为快速更为安全的服务。NVIDIA在Ampere系列的服务器级GPU（例如A100和A30）中引入了MIG的新特性。A30、A100系列及H100系列都支持MIG技术。MIG技术有以下优点：  Higher pref per MIG Dedicated image">
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="author" content="Wu De"/><meta name="keyword"/><meta name="description" content="MIG research MIG overview MIG全称Multi-instance GPU 多实例GPU技术 (MIG) 提供了更为快速更为安全的服务。NVIDIA在Ampere系列的服务器级GPU（例如A100和A30）中引入了MIG的新特性。A30、A100系列及H100系列都支持MIG技术。MIG技术有以下优点：  Higher pref per MIG Dedicated imag">
 <meta property="og:type" content="article">
 <meta property="og:title" content="MIG_research">
 <meta property="og:url" content="https://dyrc9.github.io/2025/02/19/MIG-research/index.html">
 <meta property="og:site_name" content="Sine&#39; Website">
-<meta property="og:description" content="MIG researchMIG overviewMIG全称Multi-instance GPU 多实例GPU技术 (MIG) 提供了更为快速更为安全的服务。NVIDIA在Ampere系列的服务器级GPU（例如A100和A30）中引入了MIG的新特性。A30、A100系列及H100系列都支持MIG技术。MIG技术有以下优点：  Higher pref per MIG Dedicated image">
+<meta property="og:description" content="MIG research MIG overview MIG全称Multi-instance GPU 多实例GPU技术 (MIG) 提供了更为快速更为安全的服务。NVIDIA在Ampere系列的服务器级GPU（例如A100和A30）中引入了MIG的新特性。A30、A100系列及H100系列都支持MIG技术。MIG技术有以下优点：  Higher pref per MIG Dedicated imag">
 <meta property="og:locale" content="zh_CN">
 <meta property="og:image" content="https://docs.nvidia.com/datacenter/tesla/mig-user-guide/graphics/mig-partitioning-ex6.png">
 <meta property="og:image" content="https://i-blog.csdnimg.cn/blog_migrate/0308fd5af9916049d6a6f2cfb63788eb.png">
 <meta property="og:image" content="https://developer-blogs.nvidia.com/wp-content/uploads/2020/10/gpu-and-compute-instances.png">
-<meta property="og:image" content="https://docscontent.nvidia.com/dims4/default/19ec90a/2147483647/strip/true/crop/624x379+0+0/resize/1248x758!/format/webp/quality/90/?url=https://k3-prod-nvidia-docs.s3.us-west-2.amazonaws.com/brightspot/sphinx/00000188-5368-d19b-af9b-fbfc2f760000/launchpad/ai/h100-mig/latest/_images/h100-mig-005.png">
+<meta property="og:image" content="https://docscontent.nvidia.com/dims4/default/19ec90a/2147483647/strip/true/crop/624x379+0+0/resize/1248x758!/format/webp/quality/90/?url=https%3A%2F%2Fk3-prod-nvidia-docs.s3.us-west-2.amazonaws.com%2Fbrightspot%2Fsphinx%2F00000188-5368-d19b-af9b-fbfc2f760000%2Flaunchpad%2Fai%2Fh100-mig%2Flatest%2F_images%2Fh100-mig-005.png">
 <meta property="og:image" content="https://developer-blogs.nvidia.com/wp-content/uploads/2023/07/example-topology-4-gpu.png">
 <meta property="article:published_time" content="2025-02-19T09:30:55.000Z">
-<meta property="article:modified_time" content="2025-02-19T09:31:40.254Z">
+<meta property="article:modified_time" content="2025-07-20T05:03:34.161Z">
 <meta property="article:author" content="Wu De">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:image" content="https://docs.nvidia.com/datacenter/tesla/mig-user-guide/graphics/mig-partitioning-ex6.png"><title>MIG_research - MEOW - 可爱明亮</title><link rel="shortcut icon" href="/img/site-icon.png">
@@ -21,33 +21,164 @@
 <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 
 <script src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js" async></script>
-<meta name="generator" content="Hexo 7.3.0"></head><body><header><div class="top-nav" ondblclick="scrollToTop()"><div class="nav-info"><div class="nav-icon"><img id="nav-icon" src="/img/site-icon.png"/></div><div class="nav-title"><a id="nav-title" href="/" title="主页">Sine' Website</a></div></div><div class="nav-ribbon"><div class="top-menu-expanded"><a class="top-menu-item" href="/archives"><span>归档</span></a><a class="top-menu-item" href="/categories"><span>分类</span></a><a class="top-menu-item" href="/tags"><span>标签</span></a><a class="top-menu-item" href="/about"><span>关于</span></a></div><div class="top-search" onclick="toggleSearchWindow()"><div id="top-search-btn" title="搜索"><i class="icon fa-solid fa-magnifying-glass"></i><span>搜索</span></div></div><div id="top-menu-btn" onclick="openTopMenu()" title="打开菜单"><i class="fa-solid fa-bars fa-lg"></i></div></div></div></header><div id="top-menu-hidden"><div class="menu-hidden-content"><div class="menu-hidden-nav"><a class="menu-hidden-item" href="/archives"><i class="fa-solid fa-box-archive fa-sm"></i><span>归档</span></a><a class="menu-hidden-item" href="/categories"><i class="fa-regular fa-folder-open fa-sm"></i><span>分类</span></a><a class="menu-hidden-item" href="/tags"><i class="fa-solid fa-tags fa-sm"></i><span>标签</span></a><a class="menu-hidden-item" href="/about"><i class="fa-solid fa-paw fa-sm"></i><span>关于</span></a></div></div><div class="menu-hidden-blank" onclick="closeTopMenu()"></div></div>
-<div class="blog-info"><div class="blog-pic"><img id="blog-pic" src="/img/site-icon.png"/></div><div class="blog-title"><i class="fa-solid fa-paw fa-2xs fa-rotate-by"></i><span>MEOW</span><i class="fa-solid fa-paw fa-2xs fa-rotate-by"></i></div><div class="blog-desc">但愿人长久，千里共婵娟</div></div><div class="main"><div class="main-content"><article class="post"><div class="post-title"><h1><i class="fa-solid fa-paw"></i>MIG_research</h1></div><div class="post-info"><div class="post-info-first-line"><div class="post-date"><i class="icon fa-regular fa-calendar-plus" title="发布日期"></i><time class="publish-time">2025-02-19</time><i class="icon fa-regular fa-calendar-check" title="更新日期"></i><time class="update-time">2025-02-19</time></div>
+<meta name="generator" content="Hexo 7.3.0"><style>mjx-container[jax="SVG"] {
+  direction: ltr;
+}
+
+mjx-container[jax="SVG"] > svg {
+  overflow: visible;
+}
+
+mjx-container[jax="SVG"][display="true"] {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+}
+
+mjx-container[jax="SVG"][justify="left"] {
+  text-align: left;
+}
+
+mjx-container[jax="SVG"][justify="right"] {
+  text-align: right;
+}
+
+g[data-mml-node="merror"] > g {
+  fill: red;
+  stroke: red;
+}
+
+g[data-mml-node="merror"] > rect[data-background] {
+  fill: yellow;
+  stroke: none;
+}
+
+g[data-mml-node="mtable"] > line[data-line] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > rect[data-frame] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > .mjx-dashed {
+  stroke-dasharray: 140;
+}
+
+g[data-mml-node="mtable"] > .mjx-dotted {
+  stroke-linecap: round;
+  stroke-dasharray: 0,140;
+}
+
+g[data-mml-node="mtable"] > svg {
+  overflow: visible;
+}
+
+[jax="SVG"] mjx-tool {
+  display: inline-block;
+  position: relative;
+  width: 0;
+  height: 0;
+}
+
+[jax="SVG"] mjx-tool > mjx-tip {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+mjx-tool > mjx-tip {
+  display: inline-block;
+  padding: .2em;
+  border: 1px solid #888;
+  font-size: 70%;
+  background-color: #F8F8F8;
+  color: black;
+  box-shadow: 2px 2px 5px #AAAAAA;
+}
+
+g[data-mml-node="maction"][data-toggle] {
+  cursor: pointer;
+}
+
+mjx-status {
+  display: block;
+  position: fixed;
+  left: 1em;
+  bottom: 1em;
+  min-width: 25%;
+  padding: .2em .4em;
+  border: 1px solid #888;
+  font-size: 90%;
+  background-color: #F8F8F8;
+  color: black;
+}
+
+foreignObject[data-mjx-xml] {
+  font-family: initial;
+  line-height: normal;
+  overflow: visible;
+}
+
+.MathJax path {
+  stroke-width: 3;
+}
+
+mjx-container[display="true"] {
+  overflow: auto hidden;
+}
+
+mjx-container[display="true"] + br {
+  display: none;
+}
+</style></head><body><header><div class="top-nav" ondblclick="scrollToTop()"><div class="nav-info"><div class="nav-icon"><img id="nav-icon" src="/img/site-icon.png"/></div><div class="nav-title"><a id="nav-title" href="/" title="主页">Sine' Website</a></div></div><div class="nav-ribbon"><div class="top-menu-expanded"><a class="top-menu-item" href="/archives"><span>归档</span></a><a class="top-menu-item" href="/categories"><span>分类</span></a><a class="top-menu-item" href="/tags"><span>标签</span></a><a class="top-menu-item" href="/about"><span>关于</span></a></div><div class="top-search" onclick="toggleSearchWindow()"><div id="top-search-btn" title="搜索"><i class="icon fa-solid fa-magnifying-glass"></i><span>搜索</span></div></div><div id="top-menu-btn" onclick="openTopMenu()" title="打开菜单"><i class="fa-solid fa-bars fa-lg"></i></div></div></div></header><div id="top-menu-hidden"><div class="menu-hidden-content"><div class="menu-hidden-nav"><a class="menu-hidden-item" href="/archives"><i class="fa-solid fa-box-archive fa-sm"></i><span>归档</span></a><a class="menu-hidden-item" href="/categories"><i class="fa-regular fa-folder-open fa-sm"></i><span>分类</span></a><a class="menu-hidden-item" href="/tags"><i class="fa-solid fa-tags fa-sm"></i><span>标签</span></a><a class="menu-hidden-item" href="/about"><i class="fa-solid fa-paw fa-sm"></i><span>关于</span></a></div></div><div class="menu-hidden-blank" onclick="closeTopMenu()"></div></div>
+<div class="blog-info"><div class="blog-pic"><img id="blog-pic" src="/img/site-icon.png"/></div><div class="blog-title"><i class="fa-solid fa-paw fa-2xs fa-rotate-by"></i><span>MEOW</span><i class="fa-solid fa-paw fa-2xs fa-rotate-by"></i></div><div class="blog-desc">但愿人长久，千里共婵娟</div></div><div class="main"><div class="main-content"><article class="post"><div class="post-title"><h1><i class="fa-solid fa-paw"></i>MIG_research</h1></div><div class="post-info"><div class="post-info-first-line"><div class="post-date"><i class="icon fa-regular fa-calendar-plus" title="发布日期"></i><time class="publish-time">2025-02-19</time><i class="icon fa-regular fa-calendar-check" title="更新日期"></i><time class="update-time">2025-07-20</time></div>
 
 </div><div class="post-info-second-line"><div class="post-copyright"><i class="icon fa-brands fa-creative-commons" title="版权声明"></i><span>版权声明: </span><a target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-nd/4.0/deed.zh-hans" title="CC BY-NC-ND 4.0">署名-非商业性使用-禁止演绎 4.0</a></div>
-<div class="post-word-count"><i class="icon fa-solid fa-pen-to-square"></i><span>全文约4.4K字</span></div><div class="pageview-post"><i class="icon fa-regular fa-eye"></i><span id="busuanzi_container_page_pv">阅读次数: <span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner"></i></span></span></div></div></div><div class="post-content"><h1 id="MIG-research"><a href="#MIG-research" class="headerlink" title="MIG research"></a>MIG research</h1><h2 id="MIG-overview"><a href="#MIG-overview" class="headerlink" title="MIG overview"></a>MIG overview</h2><p>MIG全称Multi-instance GPU</p>
-<p>多实例GPU技术 (MIG) 提供了更为快速更为安全的服务。NVIDIA在Ampere系列的服务器级GPU（例如A100和A30）中引入了MIG的新特性。A30、A100系列及H100系列都支持MIG技术。MIG技术有以下优点：</p>
+<div class="post-word-count"><i class="icon fa-solid fa-pen-to-square"></i><span>全文约4.4K字</span></div><div class="pageview-post"><i class="icon fa-regular fa-eye"></i><span id="busuanzi_container_page_pv">阅读次数: <span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner"></i></span></span></div></div></div><div class="post-content"><h1 id="mig-research">MIG research</h1>
+<h2 id="mig-overview">MIG overview</h2>
+<p>MIG全称Multi-instance GPU</p>
+<p>多实例GPU技术 (MIG)
+提供了更为快速更为安全的服务。NVIDIA在Ampere系列的服务器级GPU（例如A100和A30）中引入了MIG的新特性。A30、A100系列及H100系列都支持MIG技术。MIG技术有以下优点：</p>
 <ul>
 <li>Higher pref per MIG</li>
 <li>Dedicated image and video decoders per MIG</li>
-<li><strong>Trusted Execution Enviornment per MIG (H100)</strong><ul>
+<li><strong>Trusted Execution Enviornment per MIG (H100)</strong>
+<ul>
 <li>GPU virtualization (PCIe SR-IOV)</li>
 <li>HW-based security for confidentiality and integrity</li>
 <li>HW firewalls for mem isolation between MIGs</li>
+</ul></li>
 </ul>
-</li>
-</ul>
-<p>共享GPU的方式有以下三种</p>
-<ul>
-<li>Multi-Process Service (MPS) feature in CUDA 没有隔离机制 （Volta中的MPS是硬件层面的）</li>
-<li>NVIDIA’s special virtualization software named the virtual GPU (vGPU) 隔离存储资源没有隔离计算资源 计算资源由time-sharing manner调度</li>
-<li>MIG 隔离存储资源及计算资源</li>
-</ul>
-<h3 id="MIG中什么得到了隔离？"><a href="#MIG中什么得到了隔离？" class="headerlink" title="MIG中什么得到了隔离？"></a>MIG中什么得到了隔离？</h3><p>具体来说，MIG中的每个实例有单独的on-chip crossbar ports, SM，L2 cache，DRAM，内存控制器等。（With MIG, each instance’s processors have separate and isolated paths through the entire memory system - the on-chip crossbar ports, L2 cache banks, memory controllers, and DRAM address busses are all assigned uniquely to an individual instance.）在计算资源上，Copy Engines，Hardware Units也进行了划分。这里的计算资源并非CIs(Compute instances)，事实上GI中可以含有多个CI，即GI是在CI之上一层的概念。<br>同时MIG的寻址机制确保了每个GPU实例（GI）和计算实例（CI）都有其独立的地址空间和资源。在MIG（Multi-Instance GPU）架构中，大部分GPU资源都是可以被划分和隔离的，以提供给不同用户或应用独立的GPU实例。</p>
+<p>共享GPU的方式有以下三种 - Multi-Process Service (MPS) feature in CUDA
+没有隔离机制 （Volta中的MPS是硬件层面的） - NVIDIA’s special
+virtualization software named the virtual GPU (vGPU)
+隔离存储资源没有隔离计算资源 计算资源由time-sharing manner调度 - MIG
+隔离存储资源及计算资源</p>
+<h3 id="mig中什么得到了隔离">MIG中什么得到了隔离？</h3>
+<p>具体来说，MIG中的每个实例有单独的on-chip crossbar ports, SM，L2
+cache，DRAM，内存控制器等。（With MIG, each instance’s processors have
+separate and isolated paths through the entire memory system - the
+on-chip crossbar ports, L2 cache banks, memory controllers, and DRAM
+address busses are all assigned uniquely to an individual
+instance.）在计算资源上，Copy Engines，Hardware
+Units也进行了划分。这里的计算资源并非CIs(Compute
+instances)，事实上GI中可以含有多个CI，即GI是在CI之上一层的概念。
+同时MIG的寻址机制确保了每个GPU实例（GI）和计算实例（CI）都有其独立的地址空间和资源。在MIG（Multi-Instance
+GPU）架构中，大部分GPU资源都是可以被划分和隔离的，以提供给不同用户或应用独立的GPU实例。</p>
 <blockquote>
-<p>Creating GPU Instances can be thought of as splitting one big GPU into multiple smaller GPUs, with each GPU Instance having dedicated compute and memory resources. Each GPU Instance behaves like a smaller, fully capable independent GPU that includes a predefined number of GPCs, SMs, L2 cache slices, memory controllers, and frame buffer memory. </p>
+<p>Creating GPU Instances can be thought of as splitting one big GPU
+into multiple smaller GPUs, with each GPU Instance having dedicated
+compute and memory resources. Each GPU Instance behaves like a smaller,
+fully capable independent GPU that includes a predefined number of GPCs,
+SMs, L2 cache slices, memory controllers, and frame buffer memory.</p>
 </blockquote>
-<p>文献<em>TunneLs for Bootlegging: Fully Reverse-Engineering GPU TLBs for Challenging Isolation Guarantees of NVIDIA MIG</em>提到，GPU的TLB没有划分，具体来说最高一级的TLB在MIG中没有划分。此结论发表在CCS上，官方文档没有提到，论文涉及到的A100中的页表机制也是由作者逆向得来，并非NVIDIA给出，除此以外GPU内部没有其他已知的共享的资源。再往外部，GI（GPU Instance）共享PCIe接口，内核驱动程序等。</p>
+<p>文献<em>TunneLs for Bootlegging: Fully Reverse-Engineering GPU TLBs
+for Challenging Isolation Guarantees of NVIDIA
+MIG</em>提到，GPU的TLB没有划分，具体来说最高一级的TLB在MIG中没有划分。此结论发表在CCS上，官方文档没有提到，论文涉及到的A100中的页表机制也是由作者逆向得来，并非NVIDIA给出，除此以外GPU内部没有其他已知的共享的资源。再往外部，GI（GPU
+Instance）共享PCIe接口，内核驱动程序等。</p>
 <!-- MIG（Multi-Instance GPU）是由NVIDIA Ampere及以后架构的GPU硬件实现的。具体来说，MIG功能依赖于GPU内部的以下硬件组件：
 
 - 流式多处理器（Streaming Multiprocessors, SMs）：这些是GPU上的处理单元，用于执行计算指令。MIG可以将一部分SMs划分给一个GPU实例。
@@ -67,224 +198,270 @@
 - 中断和DMA：MIG还涉及对中断和直接内存访问（DMA）的硬件支持，以确保高效的资源管理和数据传输。
 
 MIG通过这些硬件组件的划分和隔离，实现了在单个物理GPU上同时运行多个独立的GPU实例，每个实例都有自己独立的资源和性能保证。这种硬件级别的分区和管理是通过NVIDIA的驱动程序和软件工具来实现的，它们提供了创建、配置和管理MIG实例的接口和命令。 -->
-
-<h3 id="MIG中的资源划分规则"><a href="#MIG中的资源划分规则" class="headerlink" title="MIG中的资源划分规则"></a>MIG中的资源划分规则</h3><p>NVIDIA MIG技术使得单个 GPU 中包含七个独立实例（H100及A100都是7个）。Sys Pipe is part of the new A100 GigaThread™ Engine, is a unit that communicates<br>with the host CPU and schedules work to a GPC (and its SMs) in the GPU slice. A100中有七个Sys Pipe。</p>
-<p>MIG中每个实例资源的划分比较有讲究。在A100上，存储资源被划分为8份，计算资源被划分为7份。总体而言可进行下图所示的划分，在垂直方向上不重叠的划分均可。例如可以划分为3g.20gb+2g.10gb+1g.5gb。<br><img src="https://docs.nvidia.com/datacenter/tesla/mig-user-guide/graphics/mig-partitioning-ex6.png"></p>
+<h3 id="mig中的资源划分规则">MIG中的资源划分规则</h3>
+<p>NVIDIA MIG技术使得单个 GPU
+中包含七个独立实例（H100及A100都是7个）。Sys Pipe is part of the new
+A100 GigaThread™ Engine, is a unit that communicates with the host CPU
+and schedules work to a GPC (and its SMs) in the GPU slice.
+A100中有七个Sys Pipe。</p>
+<p>MIG中每个实例资源的划分比较有讲究。在A100上，存储资源被划分为8份，计算资源被划分为7份。总体而言可进行下图所示的划分，在垂直方向上不重叠的划分均可。例如可以划分为3g.20gb+2g.10gb+1g.5gb。
+<img src="https://docs.nvidia.com/datacenter/tesla/mig-user-guide/graphics/mig-partitioning-ex6.png"></p>
 <p>另外值得注意的是</p>
 <blockquote>
-<p> Note that prior to NVIDIA driver release R510, the combination of a (4 memory, 4 compute) and a (4 memory, 3 compute) profile was not supported. This restriction no longer applies on newer drivers.</p>
+<p>Note that prior to NVIDIA driver release R510, the combination of a
+(4 memory, 4 compute) and a (4 memory, 3 compute) profile was not
+supported. This restriction no longer applies on newer drivers.</p>
 </blockquote>
 <p>这一点即新版本中不再有特殊情况不可划分的例子。</p>
-<h2 id="MIG与架构"><a href="#MIG与架构" class="headerlink" title="MIG与架构"></a>MIG与架构</h2><p>NVIDIA GPU的进化路线 V100-&gt;A100-&gt;H100，对应架构Volta-&gt;Ampere-&gt;Hopper，三者架构不同。<br>在多任务复用方面，Volta架构相较于之前的Pascal架构支持硬件级别的MPS（multi-process service）服务。Ampere架构之后开始支持MIG。该功能将GPU划分为多个GPU Instance（GIs），每个GI有独立的存储资源及计算资源。<br><img src="https://i-blog.csdnimg.cn/blog_migrate/0308fd5af9916049d6a6f2cfb63788eb.png"></p>
-<h3 id="MIG的组织关系-GI和CI-及隔离关系"><a href="#MIG的组织关系-GI和CI-及隔离关系" class="headerlink" title="MIG的组织关系 GI和CI 及隔离关系"></a>MIG的组织关系 GI和CI 及隔离关系</h3><p>MIG的若干GI相互隔离，GI中若干CI共享GI中的内存资源及engine（如Copy Engines (CE) and NVDEC decoders (DEC) 等）。</p>
-<p>由顶向下，MIG的各个组成部分的组成关系为</p>
-<ul>
-<li>GI(GPU Instance) 由若干 GPU slices及部分划分的Other engine组成</li>
-<li>单个GPU slice &#x3D; Sys Pipe + GPC + L2 slice group + 部分内存</li>
-<li>Sys Pipe 是负责调度的单元 沟通CPU与GPC</li>
-<li>GPC是由SMs组成的 Graphics Processing Clusters</li>
-</ul>
+<h2 id="mig与架构">MIG与架构</h2>
+<p>NVIDIA GPU的进化路线
+V100-&gt;A100-&gt;H100，对应架构Volta-&gt;Ampere-&gt;Hopper，三者架构不同。
+在多任务复用方面，Volta架构相较于之前的Pascal架构支持硬件级别的MPS（multi-process
+service）服务。Ampere架构之后开始支持MIG。该功能将GPU划分为多个GPU
+Instance（GIs），每个GI有独立的存储资源及计算资源。 <img src="https://i-blog.csdnimg.cn/blog_migrate/0308fd5af9916049d6a6f2cfb63788eb.png"></p>
+<h3 id="mig的组织关系-gi和ci-及隔离关系">MIG的组织关系 GI和CI
+及隔离关系</h3>
+<p>MIG的若干GI相互隔离，GI中若干CI共享GI中的内存资源及engine（如Copy
+Engines (CE) and NVDEC decoders (DEC) 等）。</p>
+<p>由顶向下，MIG的各个组成部分的组成关系为 - GI(GPU Instance) 由若干 GPU
+slices及部分划分的Other engine组成 - 单个GPU slice = Sys Pipe + GPC + L2
+slice group + 部分内存 - Sys Pipe 是负责调度的单元 沟通CPU与GPC -
+GPC是由SMs组成的 Graphics Processing Clusters</p>
 <blockquote>
-<p>In MIG operating mode, the single GPC in each GPU slice has seven TPCs (14 SMs) enabled, which allows all GPU slices to have the same consistent compute performance.</p>
+<p>In MIG operating mode, the single GPC in each GPU slice has seven
+TPCs (14 SMs) enabled, which allows all GPU slices to have the same
+consistent compute performance.</p>
 </blockquote>
-<p>按照另一个视角，GI又可以划分为存储资源和计算资源：</p>
-<ul>
-<li>A GPU Memory slice is another MIG structure that includes all the L2 slice groups (blocks of L2 cache slices) and associated frame buffer memory contained across all the GPU slices in a GPU Instance</li>
-<li>A “Compute Instance” is another grouping that can configure different levels of Compute power created within a GPU Instance, encapsulating all the compute resources (number of GPCs, Copy Engines, NVDEC units, etc.) that can execute work in the GPU Instance<ul>
-<li>每个计算资源支持Volta架构中的Volta-style MPS functionality</li>
-</ul>
-</li>
-</ul>
-<p>MIG整个划分过程的流程分为两步</p>
-<ul>
-<li>GPU memory partitioning<ul>
-<li>GPU instance creation</li>
-<li>GPU memory slices are merged within the GI</li>
-</ul>
-</li>
-<li>Compute partitioning<ul>
-<li>compute instance creation <strong>within GPU instance</strong></li>
-<li>一个GI里的GPCs能被划分为若干组Compute instances(CIs)</li>
-<li>一个组里的若干CIs共享other engines以及存储资源（存储资源在上一步也进行了默认划分）</li>
-</ul>
-</li>
-</ul>
+<p>按照另一个视角，GI又可以划分为存储资源和计算资源： - A GPU Memory
+slice is another MIG structure that includes all the L2 slice groups
+(blocks of L2 cache slices) and associated frame buffer memory contained
+across all the GPU slices in a GPU Instance - A “Compute Instance” is
+another grouping that can configure different levels of Compute power
+created within a GPU Instance, encapsulating all the compute resources
+(number of GPCs, Copy Engines, NVDEC units, etc.) that can execute work
+in the GPU Instance - 每个计算资源支持Volta架构中的Volta-style MPS
+functionality</p>
+<p>MIG整个划分过程的流程分为两步 - GPU memory partitioning - GPU
+instance creation - GPU memory slices are merged within the GI - Compute
+partitioning - compute instance creation <strong>within GPU
+instance</strong> - 一个GI里的GPCs能被划分为若干组Compute instances(CIs)
+- 一个组里的若干CIs共享other
+engines以及存储资源（存储资源在上一步也进行了默认划分）</p>
 <p>划分之后的结构如下所示，划分为了多个GI，单个GI上还可以并行进行若干任务。</p>
 <p><img src="https://developer-blogs.nvidia.com/wp-content/uploads/2020/10/gpu-and-compute-instances.png"></p>
-<p>A100中有7个Sys Pipe，即支持划分为至多7个GI。这7个Sys Pipe中只有一个和之前的GPU一样同时支持both Graphics and Compute work，另外6个只支持Compute-only workloads。所以A100中Graphics Mode不支持开启MIG功能，单个Sys Pipe控制整个GPU。MIG is a Compute Mode-only feature.</p>
-<p>单个GI中有若干个CIs，每个CIs只能保留一个Sys Pipe以指挥若干GPC。若干CIs实现并行。</p>
+<p>A100中有7个Sys Pipe，即支持划分为至多7个GI。这7个Sys
+Pipe中只有一个和之前的GPU一样同时支持both Graphics and Compute
+work，另外6个只支持Compute-only workloads。所以A100中Graphics
+Mode不支持开启MIG功能，单个Sys Pipe控制整个GPU。MIG is a Compute
+Mode-only feature.</p>
+<p>单个GI中有若干个CIs，每个CIs只能保留一个Sys
+Pipe以指挥若干GPC。若干CIs实现并行。</p>
 <p>在H100中，MIG增加了机密计算的支持，官方文档未提及其他功能的升级。如下图所示，PCIE进行传输过程中采用了加密，并且H100中加入了可信执行环境。</p>
-<p><img src="https://docscontent.nvidia.com/dims4/default/19ec90a/2147483647/strip/true/crop/624x379+0+0/resize/1248x758!/format/webp/quality/90/?url=https://k3-prod-nvidia-docs.s3.us-west-2.amazonaws.com/brightspot/sphinx/00000188-5368-d19b-af9b-fbfc2f760000/launchpad/ai/h100-mig/latest/_images/h100-mig-005.png"></p>
+<p><img src="https://docscontent.nvidia.com/dims4/default/19ec90a/2147483647/strip/true/crop/624x379+0+0/resize/1248x758!/format/webp/quality/90/?url=https%3A%2F%2Fk3-prod-nvidia-docs.s3.us-west-2.amazonaws.com%2Fbrightspot%2Fsphinx%2F00000188-5368-d19b-af9b-fbfc2f760000%2Flaunchpad%2Fai%2Fh100-mig%2Flatest%2F_images%2Fh100-mig-005.png"></p>
 <!-- ![GH100 全 GPU 带 144 条 SMs](https://developer-blogs.nvidia.com/wp-content/uploads/2022/03/Full-H100-GPU-with-144-SMs-1024x457.png) -->
-
-<!-- ![](https://developer-blogs.nvidia.com/wp-content/uploads/2022/03/H100-Streaming-Multiprocessor-SM-625x869.png) --> 
-
-<h2 id="H100相较于A100的升级"><a href="#H100相较于A100的升级" class="headerlink" title="H100相较于A100的升级"></a>H100相较于A100的升级</h2><p>基于新NVIDIA Hopper GPU 架构的 Nvidia H100 GPU 具有多个创新：</p>
+<!-- ![](https://developer-blogs.nvidia.com/wp-content/uploads/2022/03/H100-Streaming-Multiprocessor-SM-625x869.png) -->
+<h2 id="h100相较于a100的升级">H100相较于A100的升级</h2>
+<p>基于新NVIDIA Hopper GPU 架构的 Nvidia H100 GPU 具有多个创新：</p>
 <ul>
 <li>新的第四代张量计算核心在更广泛的人工智能和高性能计算任务中执行比以往更快的矩阵计算。</li>
-<li>新的 transformer 引擎使 H100 的人工智能训练速度提高了 9 倍，人工智能训练速度提高了 30 倍。与前一代 A100 相比，大型语言模型的推理速度有所提高。</li>
-<li>新的 NVLink 网络互连使 GPU 能够跨多个计算节点在多达 256 个 GPU 之间进行 GPU 通信。</li>
-<li>安全 MIG 将 GPU 划分为独立的、大小合适的实例，以最大限度地提高较小工作负载的服务质量（ QoS ）。</li>
+<li>新的 transformer 引擎使 H100 的人工智能训练速度提高了 9
+倍，人工智能训练速度提高了 30 倍。与前一代 A100
+相比，大型语言模型的推理速度有所提高。</li>
+<li>新的 NVLink 网络互连使 GPU 能够跨多个计算节点在多达 256 个 GPU
+之间进行 GPU 通信。</li>
+<li>安全 MIG 将 GPU
+划分为独立的、大小合适的实例，以最大限度地提高较小工作负载的服务质量（
+QoS ）。</li>
 </ul>
 <p>H100采用了新的SM (streaming multiprocessor)架构</p>
-<p>在MIG方面：</p>
-<ul>
-<li>H100 引入了第二代 MIG 技术，这提供了每个 GPU 实例大约 3 倍的计算能力和几乎 2 倍的内存带宽。</li>
-<li>H100 的 MIG 功能现在首次提供了机密计算能力，包括 MIG 级别的可信执行环境 (TEE)。</li>
-<li>H100 GPU 的 MIG 实例包括硬件虚拟化支持，使用 PCIe SR-IOV（每个 MIG 实例一个虚拟功能 (VF)）。</li>
-<li>在多租户单 GPU 配置示例中，CPU 和 GPU 之间的传输是加密的，确保了数据的安全性。</li>
-<li>H100 MIG 实例现在包括它们自己的性能监控器集，这些监控器与 NVIDIA 开发者工具协作，使得管理员可以无缝地在用户之间监控和分配资源。</li>
-</ul>
+<p>在MIG方面： - H100 引入了第二代 MIG 技术，这提供了每个 GPU 实例大约 3
+倍的计算能力和几乎 2 倍的内存带宽。 - H100 的 MIG
+功能现在首次提供了机密计算能力，包括 MIG 级别的可信执行环境 (TEE)。 -
+H100 GPU 的 MIG 实例包括硬件虚拟化支持，使用 PCIe SR-IOV（每个 MIG
+实例一个虚拟功能 (VF)）。 - 在多租户单 GPU 配置示例中，CPU 和 GPU
+之间的传输是加密的，确保了数据的安全性。 - H100 MIG
+实例现在包括它们自己的性能监控器集，这些监控器与 NVIDIA
+开发者工具协作，使得管理员可以无缝地在用户之间监控和分配资源。</p>
 <p><img src="https://developer-blogs.nvidia.com/wp-content/uploads/2023/07/example-topology-4-gpu.png"></p>
-<h2 id="related-paper-list"><a href="#related-paper-list" class="headerlink" title="related paper list"></a>related paper list</h2><p>针对MIG的研究较少，针对MIG安全方面的研究更是少之又少。研究基本在A100上展开，在H100上的MIG暂未发现相关论文。</p>
-<h3 id="安全相关"><a href="#安全相关" class="headerlink" title="安全相关"></a>安全相关</h3><ul>
-<li><p>Confidential Computing on Heterogeneous Systems: Survey and Implications</p>
+<h2 id="related-paper-list">related paper list</h2>
+<p>针对MIG的研究较少，针对MIG安全方面的研究更是少之又少。研究基本在A100上展开，在H100上的MIG暂未发现相关论文。</p>
+<h3 id="安全相关">安全相关</h3>
+<ul>
+<li>Confidential Computing on Heterogeneous Systems: Survey and
+Implications
 <ul>
 <li>综述文章 具体内容在下一章展开</li>
-<li>针对多GPU（mGPU）仅引用了两篇文章，即<ul>
-<li>TunneLs for Bootlegging: Fully Reverse-Engineering GPU TLBs for Challenging Isolation Guarantees of NVIDIA MIG 针对MIG的攻击</li>
-<li>Spy in the GPU-box: Covert and side channel attacks on multi-GPU systems. 这篇文章以嗅探PCIe作为切入点进行侧信道攻击 针对多GPU的情况而非MIG<br>  可见相关方向研究较少。</li>
-</ul>
-</li>
-</ul>
-</li>
-<li><p>TunneLs for Bootlegging: Fully Reverse-Engineering GPU TLBs for Challenging Isolation Guarantees of NVIDIA MIG</p>
+<li>针对多GPU（mGPU）仅引用了两篇文章，即
+<ul>
+<li>TunneLs for Bootlegging: Fully Reverse-Engineering GPU TLBs for
+Challenging Isolation Guarantees of NVIDIA MIG 针对MIG的攻击</li>
+<li>Spy in the GPU-box: Covert and side channel attacks on multi-GPU
+systems. 这篇文章以嗅探PCIe作为切入点进行侧信道攻击
+针对多GPU的情况而非MIG 可见相关方向研究较少。</li>
+</ul></li>
+</ul></li>
+<li>TunneLs for Bootlegging: Fully Reverse-Engineering GPU TLBs for
+Challenging Isolation Guarantees of NVIDIA MIG
 <ul>
 <li>ccs’23</li>
-<li><a target="_blank" rel="noopener" href="https://dl.acm.org/doi/10.1145/3576915.3616672">https://dl.acm.org/doi/10.1145/3576915.3616672</a></li>
-<li>提出了一种新方法，全面逆向工程现代GPU的TLB属性，并发现了NVIDIA MIG特性的一个设计缺陷，该缺陷允许跨MIG强制隔离的数据泄露。</li>
+<li>https://dl.acm.org/doi/10.1145/3576915.3616672</li>
+<li>提出了一种新方法，全面逆向工程现代GPU的TLB属性，并发现了NVIDIA
+MIG特性的一个设计缺陷，该缺陷允许跨MIG强制隔离的数据泄露。</li>
 <li>第一个针对MIG的攻击</li>
 <li>从驱动的代码及仅有的一个官方文档出发 揭示A100的页表机制</li>
-<li>envytools 一个揭秘NVIDIA驱动的工具 <a target="_blank" rel="noopener" href="https://github.com/envytools/envytools">https://github.com/envytools/envytools</a></li>
+<li>envytools 一个揭秘NVIDIA驱动的工具
+https://github.com/envytools/envytools</li>
 <li>未在H100上进行实验 H100和A100架构不同 以上实验是否可重复？</li>
-</ul>
-</li>
-<li><p>Missile: Fine-Grained, Hardware-Level GPU Resource Isolation for Multi-Tenant DNN Inference</p>
+</ul></li>
+<li>Missile: Fine-Grained, Hardware-Level GPU Resource Isolation for
+Multi-Tenant DNN Inference
 <ul>
 <li>arxiv</li>
-<li><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2407.13996">https://arxiv.org/abs/2407.13996</a></li>
-<li>这篇文章介绍了一个名为Missile的新型GPU共享解决方案，它旨在为多租户深度神经网络（DNN）推理任务提供细粒度、硬件级别的GPU资源隔离。Missile通过软件层面的方法，近似实现了硬件级别的资源隔离，使得NVIDIA GPU能够更好地管理服务质量（QoS）。文章的主要贡献包括：通过全面逆向工程，首次揭示了NVIDIA GPU的通用VRAM通道散列映射架构。利用软件层面的缓存着色技术，减少了任务间VRAM通道的冲突，适用于新的NVIDIA GPU。通过时间复用技术隔离PCIe总线，并使用完全公平调度器（Completely Fair Scheduler, CFS）公平地分配PCIe总线带宽给多个租户。Missile的评估结果显示，与现有的GPU共享解决方案相比，Missile能够将高优先级服务的尾部延迟降低高达50%，同时实现高达6.1倍的最佳工作负载吞吐量，并按需为租户分配PCIe总线带宽以获得最佳性能。</li>
+<li>https://arxiv.org/abs/2407.13996</li>
+<li>这篇文章介绍了一个名为Missile的新型GPU共享解决方案，它旨在为多租户深度神经网络（DNN）推理任务提供细粒度、硬件级别的GPU资源隔离。Missile通过软件层面的方法，近似实现了硬件级别的资源隔离，使得NVIDIA
+GPU能够更好地管理服务质量（QoS）。文章的主要贡献包括：通过全面逆向工程，首次揭示了NVIDIA
+GPU的通用VRAM通道散列映射架构。利用软件层面的缓存着色技术，减少了任务间VRAM通道的冲突，适用于新的NVIDIA
+GPU。通过时间复用技术隔离PCIe总线，并使用完全公平调度器（Completely Fair
+Scheduler,
+CFS）公平地分配PCIe总线带宽给多个租户。Missile的评估结果显示，与现有的GPU共享解决方案相比，Missile能够将高优先级服务的尾部延迟降低高达50%，同时实现高达6.1倍的最佳工作负载吞吐量，并按需为租户分配PCIe总线带宽以获得最佳性能。</li>
 <li>安全相关 试图比MIG性能更好 软件层面（MIG是硬件层面）</li>
 <li>实验在Tesla P40、 Telsa V100、 RTX A2000、 RTX A5500 上展开</li>
-</ul>
-</li>
-<li><p>Ascend-CC: Confidential Computing on Heterogeneous NPU for Emerging Generative AI Workloads</p>
+</ul></li>
+<li>Ascend-CC: Confidential Computing on Heterogeneous NPU for Emerging
+Generative AI Workloads
 <ul>
-<li>arxiv </li>
+<li>arxiv</li>
 <li>Huawei Zurich Research Center</li>
-<li><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2407.11888">https://arxiv.org/abs/2407.11888</a></li>
+<li>https://arxiv.org/abs/2407.11888</li>
 <li>这篇文章介绍了一个名为ASCEND-CC的新型保密计算架构，它专为异构神经处理单元（NPU）设计，用于支持新兴的生成性人工智能（GenAI）工作负载。</li>
 <li>安全相关 NPU相关</li>
+</ul></li>
 </ul>
-</li>
-</ul>
-<h3 id="性能提升相关"><a href="#性能提升相关" class="headerlink" title="性能提升相关"></a>性能提升相关</h3><ul>
-<li><p>ElasticBatch: A Learning-Augmented Elastic Scheduling System for Batch Inference on MIG</p>
+<h3 id="性能提升相关">性能提升相关</h3>
+<ul>
+<li>ElasticBatch: A Learning-Augmented Elastic Scheduling System for
+Batch Inference on MIG
 <ul>
 <li>TPDS’24（A刊）</li>
-<li><a target="_blank" rel="noopener" href="https://ieeexplore.ieee.org/abstract/document/10605084">https://ieeexplore.ieee.org/abstract/document/10605084</a></li>
-<li>文章可能介绍了 ElasticBatch，这是一个为多实例 GPU (MIG) 上的批处理推理设计的弹性调度系统。ElasticBatch 利用机器学习增强的方法来优化批处理作业的调度，以适应不断变化的推理需求和资源可用性。系统可能包括对MIG架构的利用，以实现高效的资源分配和作业调度，从而提高整体的推理性能和吞吐量。</li>
+<li>https://ieeexplore.ieee.org/abstract/document/10605084</li>
+<li>文章可能介绍了 ElasticBatch，这是一个为多实例 GPU (MIG)
+上的批处理推理设计的弹性调度系统。ElasticBatch
+利用机器学习增强的方法来优化批处理作业的调度，以适应不断变化的推理需求和资源可用性。系统可能包括对MIG架构的利用，以实现高效的资源分配和作业调度，从而提高整体的推理性能和吞吐量。</li>
 <li>the evaluation system specification: A100 40G</li>
-</ul>
-</li>
-<li><p>lnSS: An Intelligent Scheduling Orchestrator for Multi-GPU Inference With Spatio-Temporal Sharing</p>
+</ul></li>
+<li>lnSS: An Intelligent Scheduling Orchestrator for Multi-GPU Inference
+With Spatio-Temporal Sharing
 <ul>
 <li>TPDS’24（A刊）</li>
-<li><a target="_blank" rel="noopener" href="https://ieeexplore.ieee.org/abstract/document/10601534">https://ieeexplore.ieee.org/abstract/document/10601534</a></li>
-<li>文章可能介绍了 InSS，这是一个智能调度协调器，用于在多个 GPU 上进行推理任务，同时实现了空间和时间上的共享。InSS 可能利用先进的调度算法来优化 GPU 资源的使用，提高了多 GPU 推理系统的性能和效率。</li>
+<li>https://ieeexplore.ieee.org/abstract/document/10601534</li>
+<li>文章可能介绍了 InSS，这是一个智能调度协调器，用于在多个 GPU
+上进行推理任务，同时实现了空间和时间上的共享。InSS
+可能利用先进的调度算法来优化 GPU 资源的使用，提高了多 GPU
+推理系统的性能和效率。</li>
 <li>同样在A100上展开</li>
-</ul>
-</li>
-<li><p>MISO: Exploiting Multi-Instance GPU Capability on Multi-Tenant Systems for Machine Learning</p>
+</ul></li>
+<li>MISO: Exploiting Multi-Instance GPU Capability on Multi-Tenant
+Systems for Machine Learning
 <ul>
 <li>SoCC’22（B刊）</li>
-<li><a target="_blank" rel="noopener" href="https://arxiv.org/abs/2207.11428">https://arxiv.org/abs/2207.11428</a></li>
+<li>https://arxiv.org/abs/2207.11428</li>
 <li>文章提出了一种名为MISO的技术，旨在利用NVIDIA最新数据中心GPU（例如A100、H100）上的多实例GPU（MIG）功能，动态地在多个作业之间划分GPU资源。MISO的关键思想是使用轻量级、更灵活的多进程服务（MPS）功能来预测不同作业的最佳MIG分区分配，避免了在探索期间实现它们时的开销。由于MISO能更有效地利用GPU资源，它比未分区和最优静态GPU分区方案分别实现了平均作业完成时间降低了49%和16%。</li>
-</ul>
-</li>
-<li><p>MIGER: Integrating Multi-Instance GPU and Multi-Process Service for Deep Learning Clusters</p>
+</ul></li>
+<li>MIGER: Integrating Multi-Instance GPU and Multi-Process Service for
+Deep Learning Clusters
 <ul>
-<li><p>ICPP ‘24（B刊）</p>
-</li>
-<li><p><a target="_blank" rel="noopener" href="https://dl.acm.org/doi/10.1145/3673038.3673089">https://dl.acm.org/doi/10.1145/3673038.3673089</a></p>
-</li>
-<li><p>文章讨论了现代NVIDIA GPU在数据中心的广泛使用，特别是它们如何通过使用空间共享技术如多进程服务（MPS）和多实例GPU（MIG）来同时运行多个工作负载。作者发现，当这些技术单独使用时，存在性能干扰和资源大小不灵活的问题。因此，他们提出了MIGER系统，该系统集成了MPS和MIG技术，用于现代GPU上的在线和离线作业。MIGER采用分层调度架构来确定MIG分区的大小、如何共存在线和离线作业，以及每个作业的MPS资源份额，以提高离线作业的吞吐量同时保证在线作业的服务质量（QoS）要求。通过大量真实集群实验，MIGER与现有的基于MIG和MPS的解决方案相比，分别实现了36%和46.6%的作业完成时间的显著改进。</p>
-</li>
-<li><p>A100 80G</p>
-</li>
-<li><p>MIG的效率提升</p>
-</li>
-</ul>
-</li>
-<li><p>Characterizing Multi-Instance GPU for Machine Learning Workloads</p>
+<li><p>ICPP ’24（B刊）</p></li>
+<li><p>https://dl.acm.org/doi/10.1145/3673038.3673089</p></li>
+<li><p>文章讨论了现代NVIDIA
+GPU在数据中心的广泛使用，特别是它们如何通过使用空间共享技术如多进程服务（MPS）和多实例GPU（MIG）来同时运行多个工作负载。作者发现，当这些技术单独使用时，存在性能干扰和资源大小不灵活的问题。因此，他们提出了MIGER系统，该系统集成了MPS和MIG技术，用于现代GPU上的在线和离线作业。MIGER采用分层调度架构来确定MIG分区的大小、如何共存在线和离线作业，以及每个作业的MPS资源份额，以提高离线作业的吞吐量同时保证在线作业的服务质量（QoS）要求。通过大量真实集群实验，MIGER与现有的基于MIG和MPS的解决方案相比，分别实现了36%和46.6%的作业完成时间的显著改进。</p></li>
+<li><p>A100 80G</p></li>
+<li><p>MIG的效率提升</p></li>
+</ul></li>
+<li>Characterizing Multi-Instance GPU for Machine Learning Workloads
 <ul>
 <li>IPDPSW’22（B刊）</li>
-<li><a target="_blank" rel="noopener" href="https://ieeexplore.ieee.org/abstract/document/9835424">https://ieeexplore.ieee.org/abstract/document/9835424</a></li>
+<li>https://ieeexplore.ieee.org/abstract/document/9835424</li>
 <li>文章可能介绍了对多实例GPU（MIG）的机器学习工作负载的表征研究。这可能包括对MIG架构的分析，以及它如何支持机器学习任务，特别是深度学习模型的训练和推理。研究可能涉及到对不同配置和使用模式下的MIG性能的评估，以及它在处理多租户环境或多任务环境中的表现。</li>
 <li>MIG的效率提升</li>
-</ul>
-</li>
-<li><p><a target="_blank" rel="noopener" href="https://web3.arxiv.org/abs/2409.03992">https://web3.arxiv.org/abs/2409.03992</a> </p>
+</ul></li>
+<li>https://web3.arxiv.org/abs/2409.03992
 <ul>
 <li>这篇文章评估了H100在机密计算下的性能</li>
+</ul></li>
 </ul>
-</li>
-</ul>
-<h2 id="Confidential-Computing-on-Heterogeneous-Systems-Survey-and-Implications"><a href="#Confidential-Computing-on-Heterogeneous-Systems-Survey-and-Implications" class="headerlink" title="Confidential Computing on Heterogeneous Systems: Survey and Implications"></a>Confidential Computing on Heterogeneous Systems: Survey and Implications</h2><p>Heterogeneous computing refers to systems that leverage multiple types of computing cores, including CPUs, GPUs, ASICs, FPGAs, and NPUs. Current state of security research on heterogeneous computing systems with GPU focus on the following topics:</p>
+<h2 id="confidential-computing-on-heterogeneous-systems-survey-and-implications">Confidential
+Computing on Heterogeneous Systems: Survey and Implications</h2>
+<p>Heterogeneous computing refers to systems that leverage multiple
+types of computing cores, including CPUs, GPUs, ASICs, FPGAs, and NPUs.
+Current state of security research on heterogeneous computing systems
+with GPU focus on the following topics: - GPU TEE (mainly focus on how
+to build a TEE by CPU TEE) - x86 based - Arm based - GPU Crypto - HE
+(Homomorphic Encryption 同态加密) - MPC (Secure Multi-Party Computation
+安全多方计算) - GPU Attacks - architectural attack (AA) -
+microarchitectural side-channel attack (MSCA) - microarchitectural
+covert-channel attack (MCCA) - physical side-channel attack (PSCA) -
+software-based fault injection attack (SFIA)</p>
+<p>该文章将视角聚焦到GPU TEE上，指出和CPU TEE相比， GPU
+TEE有以下新视角展开攻击： - GPU software stack on CPU 即GPU Driver。 -
+In current GPU TEEs, the protection of GPU drivers, particularly their
+positioning in the CPU host, may introduce new attack surface.
+Furthermore, some state-of-the-art attacks against CPU TEEs may also
+affect GPU drivers.</p>
 <ul>
-<li>GPU TEE (mainly focus on how to build a TEE by CPU TEE)<ul>
-<li>x86 based</li>
-<li>Arm based</li>
-</ul>
-</li>
-<li>GPU Crypto<ul>
-<li>HE (Homomorphic Encryption 同态加密)</li>
-<li>MPC (Secure Multi-Party Computation 安全多方计算)</li>
-</ul>
-</li>
-<li>GPU Attacks<ul>
-<li>architectural attack (AA)</li>
-<li>microarchitectural side-channel attack (MSCA)</li>
-<li>microarchitectural covert-channel attack (MCCA)</li>
-<li>physical side-channel attack (PSCA)</li>
-<li>software-based fault injection attack (SFIA)</li>
-</ul>
-</li>
-</ul>
-<p>该文章将视角聚焦到GPU TEE上，指出和CPU TEE相比， GPU TEE有以下新视角展开攻击：</p>
+<li>Hardware components on GPU
 <ul>
-<li><p>GPU software stack on CPU 即GPU Driver。 </p>
+<li>such as GPU memory, the Peripheral Component Interconnect Express
+(PCIe) bus, and power management components.</li>
+</ul></li>
+<li>Architectural complexity
 <ul>
-<li>In current GPU TEEs, the protection of GPU drivers, particularly their positioning in the CPU host, may introduce new attack surface. Furthermore, some state-of-the-art attacks against CPU TEEs may also affect GPU drivers.</li>
+<li>such as memory sharing among different concurrent kernels and the
+variety of GPU types</li>
+</ul></li>
 </ul>
-</li>
-<li><p>Hardware components on GPU </p>
-<ul>
-<li>such as GPU memory, the Peripheral Component Interconnect Express (PCIe) bus, and power management components.</li>
-</ul>
-</li>
-<li><p>Architectural complexity</p>
-<ul>
-<li>such as memory sharing among different concurrent kernels and the variety of GPU types</li>
-</ul>
-</li>
-</ul>
-<p>而针对MIG，尤其是H100系列的研究，文章指出</p>
-<blockquote>
-<p>NVIDIA’s H100 Tensor Core GPU [124], based on the Hopper architecture, introduces advanced features for confidential computing. To enable confidential computing with the H100, it requires specific CPU TEEs, such as Intel TDX, AMD SEV-SNP, and Arm CCA. In addition to ensuring the confidentiality and integrity of data and code, H100 can defend against basic physical attacks targeting the PCIe bus and Double Data Rate RAM (DDR). H100 supports three different operation modes, namely CC-Off, CC-On, and CC-DevTools. In CC-On mode, the H100, along with the drivers on the CPU, fully activates all available confidential computing features. Some hardware resources, such as performance counters, are disabled in CC-On mode to prevent potential side-channel attacks, as performance counters could be used to infer the behavior of device usage [120]. However, details about specific hardware changes, such as memory encryption in the H100, remain unclear at present.</p>
-</blockquote>
-<p>如上所述，目前调研针对多GPU的攻击仅有两篇文章，针对MIG的攻击甚至只有TunneLs for Bootlegging: Fully Reverse-Engineering GPU TLBs for Challenging Isolation Guarantees of NVIDIA MIG一篇文章。</p>
+<p>而针对MIG，尤其是H100系列的研究，文章指出 &gt; NVIDIA’s H100 Tensor
+Core GPU [124], based on the Hopper architecture, introduces advanced
+features for confidential computing. To enable confidential computing
+with the H100, it requires specific CPU TEEs, such as Intel TDX, AMD
+SEV-SNP, and Arm CCA. In addition to ensuring the confidentiality and
+integrity of data and code, H100 can defend against basic physical
+attacks targeting the PCIe bus and Double Data Rate RAM (DDR). H100
+supports three different operation modes, namely CC-Off, CC-On, and
+CC-DevTools. In CC-On mode, the H100, along with the drivers on the CPU,
+fully activates all available confidential computing features. Some
+hardware resources, such as performance counters, are disabled in CC-On
+mode to prevent potential side-channel attacks, as performance counters
+could be used to infer the behavior of device usage [120]. However,
+details about specific hardware changes, such as memory encryption in
+the H100, remain unclear at present.</p>
+<p>如上所述，目前调研针对多GPU的攻击仅有两篇文章，针对MIG的攻击甚至只有TunneLs
+for Bootlegging: Fully Reverse-Engineering GPU TLBs for Challenging
+Isolation Guarantees of NVIDIA MIG一篇文章。</p>
 <p>最后文章首先对CPU中的TEE的攻击思路进行了介绍，再类比对GPU中TEE的攻击思路进行揣测，最后对H100潜在的攻击方向进行了讨论。</p>
-<p>H100之前GPU上的TEE许多在信任GPU内存的前提下展开，通过外设硬件的修改实现TEE，具体而言相关论文（如HIX）的硬件修改采用仿真进行。也有相关研究使用软件结合CPU中的TEE设计GPU TEE。H100实现了真正的硬件级别的TEE，需要和CPU TEE结合使用。从架构上来说是x86-based GPU TEE。</p>
-<p>针对GPU的许多攻击的思路有的是snoop the PCIe traffic or GDDR5 using a bus snooping device有的共享一些内存硬件从而对隐藏信息进行窃取。很多攻击的基础是通过逆向得到GPU未开源的一些结构，然后进行侧信道或隐蔽信道攻击。例如</p>
-<ul>
-<li>Naghibijouybari et al. [118] first reverse-engineer the hardware block and warp-to-warp schedulers to establish the co-location, then learn contention on caches, functional units and memory, and finally construct covert channels based on these resources with an error-free bandwidth exceeding 4 Mbps.</li>
-<li>Ahn et al. [3] initially reverse-engineer the structure of on-chip networks within modern GPUs and note that the hierarchical organization of the GPU leads to the sharing of interconnect bandwidth among adjacent cores.</li>
-<li>Nayak et al. [121] reverse-engineer the details of the TLB hierarchy and the details of all TLB levels, such as the number of entries and associativity, of the NVIDIA 1080Ti.</li>
-<li>By reverse-engineering the TLB structure in recent NVIDIA GPUs such as A100 and H100, Zhang et al. [187] discover a design flaw in the NVIDIA MIG feature: MIG does not partition the last-level TLB, which is shared by all GPU instances.</li>
-</ul>
+<p>H100之前GPU上的TEE许多在信任GPU内存的前提下展开，通过外设硬件的修改实现TEE，具体而言相关论文（如HIX）的硬件修改采用仿真进行。也有相关研究使用软件结合CPU中的TEE设计GPU
+TEE。H100实现了真正的硬件级别的TEE，需要和CPU
+TEE结合使用。从架构上来说是x86-based GPU TEE。</p>
+<p>针对GPU的许多攻击的思路有的是snoop the PCIe traffic or GDDR5 using a
+bus snooping
+device有的共享一些内存硬件从而对隐藏信息进行窃取。很多攻击的基础是通过逆向得到GPU未开源的一些结构，然后进行侧信道或隐蔽信道攻击。例如
+- Naghibijouybari et al. [118] first reverse-engineer the hardware block
+and warp-to-warp schedulers to establish the co-location, then learn
+contention on caches, functional units and memory, and finally construct
+covert channels based on these resources with an error-free bandwidth
+exceeding 4 Mbps. - Ahn et al. [3] initially reverse-engineer the
+structure of on-chip networks within modern GPUs and note that the
+hierarchical organization of the GPU leads to the sharing of
+interconnect bandwidth among adjacent cores. - Nayak et al. [121]
+reverse-engineer the details of the TLB hierarchy and the details of all
+TLB levels, such as the number of entries and associativity, of the
+NVIDIA 1080Ti. - By reverse-engineering the TLB structure in recent
+NVIDIA GPUs such as A100 and H100, Zhang et al. [187] discover a design
+flaw in the NVIDIA MIG feature: MIG does not partition the last-level
+TLB, which is shared by all GPU instances.</p>
 <p>PSCA及SFAI暂时按下不表。</p>
-</div><div class="post-end"><div class="post-prev"><a href="/2025/07/20/RL-notes-2/" title="上一篇文章"><i class="fa-solid fa-chevron-left fa-lg"></i></a></div><div class="post-next"><a href="/2025/02/12/Reinforcement-Learning-notes/" title="下一篇文章"><i class="fa-solid fa-chevron-right fa-lg"></i></a></div></div></article><div class="comment" id="comment"><script src="https://giscus.app/client.js" async="async"></script></div><div id="post-toc"><aside class="toc-aside"><div class="toc-title"><span><i class="fa-solid fa-paw"></i>目录</span></div><div class="toc-container" id="toc-body"><ol class="toc-content"><li class="toc-content-item toc-content-level-1"><a class="toc-content-link" href="#MIG-research"><span class="toc-content-number">1.</span> <span class="toc-content-text">MIG research</span></a><ol class="toc-content-child"><li class="toc-content-item toc-content-level-2"><a class="toc-content-link" href="#MIG-overview"><span class="toc-content-number">1.1.</span> <span class="toc-content-text">MIG overview</span></a><ol class="toc-content-child"><li class="toc-content-item toc-content-level-3"><a class="toc-content-link" href="#MIG%E4%B8%AD%E4%BB%80%E4%B9%88%E5%BE%97%E5%88%B0%E4%BA%86%E9%9A%94%E7%A6%BB%EF%BC%9F"><span class="toc-content-number">1.1.1.</span> <span class="toc-content-text">MIG中什么得到了隔离？</span></a></li><li class="toc-content-item toc-content-level-3"><a class="toc-content-link" href="#MIG%E4%B8%AD%E7%9A%84%E8%B5%84%E6%BA%90%E5%88%92%E5%88%86%E8%A7%84%E5%88%99"><span class="toc-content-number">1.1.2.</span> <span class="toc-content-text">MIG中的资源划分规则</span></a></li></ol></li><li class="toc-content-item toc-content-level-2"><a class="toc-content-link" href="#MIG%E4%B8%8E%E6%9E%B6%E6%9E%84"><span class="toc-content-number">1.2.</span> <span class="toc-content-text">MIG与架构</span></a><ol class="toc-content-child"><li class="toc-content-item toc-content-level-3"><a class="toc-content-link" href="#MIG%E7%9A%84%E7%BB%84%E7%BB%87%E5%85%B3%E7%B3%BB-GI%E5%92%8CCI-%E5%8F%8A%E9%9A%94%E7%A6%BB%E5%85%B3%E7%B3%BB"><span class="toc-content-number">1.2.1.</span> <span class="toc-content-text">MIG的组织关系 GI和CI 及隔离关系</span></a></li></ol></li><li class="toc-content-item toc-content-level-2"><a class="toc-content-link" href="#H100%E7%9B%B8%E8%BE%83%E4%BA%8EA100%E7%9A%84%E5%8D%87%E7%BA%A7"><span class="toc-content-number">1.3.</span> <span class="toc-content-text">H100相较于A100的升级</span></a></li><li class="toc-content-item toc-content-level-2"><a class="toc-content-link" href="#related-paper-list"><span class="toc-content-number">1.4.</span> <span class="toc-content-text">related paper list</span></a><ol class="toc-content-child"><li class="toc-content-item toc-content-level-3"><a class="toc-content-link" href="#%E5%AE%89%E5%85%A8%E7%9B%B8%E5%85%B3"><span class="toc-content-number">1.4.1.</span> <span class="toc-content-text">安全相关</span></a></li><li class="toc-content-item toc-content-level-3"><a class="toc-content-link" href="#%E6%80%A7%E8%83%BD%E6%8F%90%E5%8D%87%E7%9B%B8%E5%85%B3"><span class="toc-content-number">1.4.2.</span> <span class="toc-content-text">性能提升相关</span></a></li></ol></li><li class="toc-content-item toc-content-level-2"><a class="toc-content-link" href="#Confidential-Computing-on-Heterogeneous-Systems-Survey-and-Implications"><span class="toc-content-number">1.5.</span> <span class="toc-content-text">Confidential Computing on Heterogeneous Systems: Survey and Implications</span></a></li></ol></li></ol></div></aside><div class="toc-blank" onclick="tocToggle()"></div></div></div></div><div id="tool-bar"><div id="tool-bar-main"><div id="tool-toggle" onclick="toolToggle()" title="设置"><i class="fa-solid fa-gear"></i></div><div id="toc-toggle" onclick="tocToggle()" title="目录"><i class="fa-solid fa-list-ul"></i></div><div id="go-to-comment" onclick="gotoComment()" title="评论"><i class="fa-regular fa-message fa-flip-horizontal"></i></div><div id="back-to-top" onclick="scrollToTop()" title="返回顶部"><i class="fa-solid fa-chevron-up"></i></div></div><div id="tool-bar-more" style="display: none;"><div id="darkmode-switch" onclick="darkmodeSwitch()" title="深色模式"><i class="fa-solid fa-circle-half-stroke"></i></div><div id="font-size-increase" onclick="fontSizeIncrease()" title="放大字体"><i class="fa-solid fa-plus"></i></div><div id="font-size-decrease" onclick="fontSizeDecrease()" title="缩小字体"><i class="fa-solid fa-minus"></i></div></div></div><div id="search-panel"><div class="search-container"><div class="search-head"><div class="search-title"><span><i class="fa-solid fa-paw"></i>搜索</span></div><div class="search-close-btn" onclick="toggleSearchWindow()"><i class="fa-regular fa-circle-xmark"></i></div></div><div class="search-box"><i class="fa-solid fa-magnifying-glass"></i><input id="search-input" type="text" placeholder="请输入需要搜索的内容……" value=""/></div><div class="search-body"><div id="search-count">匹配结果数: </div><div id="search-result"></div><div id="search-result-empty">未搜索到匹配的文章。</div></div></div></div><footer><div class="footer-content"><div class="copyright-info"><i class="fa-regular fa-copyright fa-xs"></i><span>2025 </span><a href="/about">Wu De</a><i class="fa-solid fa-cat fa-sm"></i><span>Powered by </span><a href="https://hexo.io/" target="_blank">Hexo</a><span> &amp; </span><a href="https://github.com/chanwj/hexo-theme-meow" target="_blank" title="v2.1.2">Theme Meow</a></div><div class="pageview-site"><span id="busuanzi_container_site_pv">总访问量 : <span id="busuanzi_value_site_pv"><i class="fa-solid fa-spinner"></i></span></span><span id="busuanzi_container_site_uv">总访客数 : <span id="busuanzi_value_site_uv"><i class="fa-solid fa-spinner"></i></span></span></div></div></footer>
+</div><div class="post-end"><div class="post-prev"><a href="/2025/07/20/RL-notes-2/" title="上一篇文章"><i class="fa-solid fa-chevron-left fa-lg"></i></a></div><div class="post-next"><a href="/2025/02/12/Reinforcement-Learning-notes/" title="下一篇文章"><i class="fa-solid fa-chevron-right fa-lg"></i></a></div></div></article><div class="comment" id="comment"><script src="https://giscus.app/client.js" async="async"></script></div><div id="post-toc"><aside class="toc-aside"><div class="toc-title"><span><i class="fa-solid fa-paw"></i>目录</span></div><div class="toc-container" id="toc-body"><ol class="toc-content"><li class="toc-content-item toc-content-level-1"><a class="toc-content-link" href="#mig-research"><span class="toc-content-number">1.</span> <span class="toc-content-text">MIG research</span></a><ol class="toc-content-child"><li class="toc-content-item toc-content-level-2"><a class="toc-content-link" href="#mig-overview"><span class="toc-content-number">1.1.</span> <span class="toc-content-text">MIG overview</span></a><ol class="toc-content-child"><li class="toc-content-item toc-content-level-3"><a class="toc-content-link" href="#mig%E4%B8%AD%E4%BB%80%E4%B9%88%E5%BE%97%E5%88%B0%E4%BA%86%E9%9A%94%E7%A6%BB"><span class="toc-content-number">1.1.1.</span> <span class="toc-content-text">MIG中什么得到了隔离？</span></a></li><li class="toc-content-item toc-content-level-3"><a class="toc-content-link" href="#mig%E4%B8%AD%E7%9A%84%E8%B5%84%E6%BA%90%E5%88%92%E5%88%86%E8%A7%84%E5%88%99"><span class="toc-content-number">1.1.2.</span> <span class="toc-content-text">MIG中的资源划分规则</span></a></li></ol></li><li class="toc-content-item toc-content-level-2"><a class="toc-content-link" href="#mig%E4%B8%8E%E6%9E%B6%E6%9E%84"><span class="toc-content-number">1.2.</span> <span class="toc-content-text">MIG与架构</span></a><ol class="toc-content-child"><li class="toc-content-item toc-content-level-3"><a class="toc-content-link" href="#mig%E7%9A%84%E7%BB%84%E7%BB%87%E5%85%B3%E7%B3%BB-gi%E5%92%8Cci-%E5%8F%8A%E9%9A%94%E7%A6%BB%E5%85%B3%E7%B3%BB"><span class="toc-content-number">1.2.1.</span> <span class="toc-content-text">MIG的组织关系 GI和CI
+及隔离关系</span></a></li></ol></li><li class="toc-content-item toc-content-level-2"><a class="toc-content-link" href="#h100%E7%9B%B8%E8%BE%83%E4%BA%8Ea100%E7%9A%84%E5%8D%87%E7%BA%A7"><span class="toc-content-number">1.3.</span> <span class="toc-content-text">H100相较于A100的升级</span></a></li><li class="toc-content-item toc-content-level-2"><a class="toc-content-link" href="#related-paper-list"><span class="toc-content-number">1.4.</span> <span class="toc-content-text">related paper list</span></a><ol class="toc-content-child"><li class="toc-content-item toc-content-level-3"><a class="toc-content-link" href="#%E5%AE%89%E5%85%A8%E7%9B%B8%E5%85%B3"><span class="toc-content-number">1.4.1.</span> <span class="toc-content-text">安全相关</span></a></li><li class="toc-content-item toc-content-level-3"><a class="toc-content-link" href="#%E6%80%A7%E8%83%BD%E6%8F%90%E5%8D%87%E7%9B%B8%E5%85%B3"><span class="toc-content-number">1.4.2.</span> <span class="toc-content-text">性能提升相关</span></a></li></ol></li><li class="toc-content-item toc-content-level-2"><a class="toc-content-link" href="#confidential-computing-on-heterogeneous-systems-survey-and-implications"><span class="toc-content-number">1.5.</span> <span class="toc-content-text">Confidential
+Computing on Heterogeneous Systems: Survey and Implications</span></a></li></ol></li></ol></div></aside><div class="toc-blank" onclick="tocToggle()"></div></div></div></div><div id="tool-bar"><div id="tool-bar-main"><div id="tool-toggle" onclick="toolToggle()" title="设置"><i class="fa-solid fa-gear"></i></div><div id="toc-toggle" onclick="tocToggle()" title="目录"><i class="fa-solid fa-list-ul"></i></div><div id="go-to-comment" onclick="gotoComment()" title="评论"><i class="fa-regular fa-message fa-flip-horizontal"></i></div><div id="back-to-top" onclick="scrollToTop()" title="返回顶部"><i class="fa-solid fa-chevron-up"></i></div></div><div id="tool-bar-more" style="display: none;"><div id="darkmode-switch" onclick="darkmodeSwitch()" title="深色模式"><i class="fa-solid fa-circle-half-stroke"></i></div><div id="font-size-increase" onclick="fontSizeIncrease()" title="放大字体"><i class="fa-solid fa-plus"></i></div><div id="font-size-decrease" onclick="fontSizeDecrease()" title="缩小字体"><i class="fa-solid fa-minus"></i></div></div></div><div id="search-panel"><div class="search-container"><div class="search-head"><div class="search-title"><span><i class="fa-solid fa-paw"></i>搜索</span></div><div class="search-close-btn" onclick="toggleSearchWindow()"><i class="fa-regular fa-circle-xmark"></i></div></div><div class="search-box"><i class="fa-solid fa-magnifying-glass"></i><input id="search-input" type="text" placeholder="请输入需要搜索的内容……" value=""/></div><div class="search-body"><div id="search-count">匹配结果数: </div><div id="search-result"></div><div id="search-result-empty">未搜索到匹配的文章。</div></div></div></div><footer><div class="footer-content"><div class="copyright-info"><i class="fa-regular fa-copyright fa-xs"></i><span>2025 </span><a href="/about">Wu De</a><i class="fa-solid fa-cat fa-sm"></i><span>Powered by </span><a href="https://hexo.io/" target="_blank">Hexo</a><span> &amp; </span><a href="https://github.com/chanwj/hexo-theme-meow" target="_blank" title="v2.1.2">Theme Meow</a></div><div class="pageview-site"><span id="busuanzi_container_site_pv">总访问量 : <span id="busuanzi_value_site_pv"><i class="fa-solid fa-spinner"></i></span></span><span id="busuanzi_container_site_uv">总访客数 : <span id="busuanzi_value_site_uv"><i class="fa-solid fa-spinner"></i></span></span></div></div></footer>
 <script>const GLOBAL_CONFIG = {
   comment: { theme: ''}
 }
