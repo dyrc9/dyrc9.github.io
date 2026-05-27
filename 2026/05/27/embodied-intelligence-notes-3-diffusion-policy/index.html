@@ -1,0 +1,272 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="author" content="Wu De"/><meta name="description" content="Wu De 的个人主页，记录强化学习、GPU/系统、AI 基础设施、具身智能和日常学习笔记。"/><meta name="keyword" content="强化学习,GPU,MIG,系统,AI,具身智能,博客"/><meta name="description" content="机器人动作往往有多峰性和时间连续性，diffusion policy 与 action chunking 都是在处理“动作怎么表示、怎么预测”这个问题。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Embodied intelligence notes 3 - diffusion policy and action chunking">
+<meta property="og:url" content="https://dyrc9.github.io/2026/05/27/embodied-intelligence-notes-3-diffusion-policy/index.html">
+<meta property="og:site_name" content="Sine&#39; Website">
+<meta property="og:description" content="机器人动作往往有多峰性和时间连续性，diffusion policy 与 action chunking 都是在处理“动作怎么表示、怎么预测”这个问题。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-05-27T04:15:00.000Z">
+<meta property="article:modified_time" content="2026-05-27T04:15:00.000Z">
+<meta property="article:author" content="Wu De">
+<meta property="article:tag" content="Embodied AI">
+<meta property="article:tag" content="Robotics">
+<meta property="article:tag" content="Imitation Learning">
+<meta property="article:tag" content="Diffusion Policy">
+<meta property="article:tag" content="Action Chunking">
+<meta name="twitter:card" content="summary"><title>Embodied intelligence notes 3 - diffusion policy and action chunking - Sine' Website - notes, systems, and small experiments</title><link rel="shortcut icon" href="/img/site-icon.png">
+<link rel="stylesheet" href="/css/style.css" id="dm-light">
+
+
+<link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+<meta name="generator" content="Hexo 7.3.0"><style>mjx-container[jax="SVG"] {
+  direction: ltr;
+}
+
+mjx-container[jax="SVG"] > svg {
+  overflow: visible;
+}
+
+mjx-container[jax="SVG"][display="true"] {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+}
+
+mjx-container[jax="SVG"][justify="left"] {
+  text-align: left;
+}
+
+mjx-container[jax="SVG"][justify="right"] {
+  text-align: right;
+}
+
+g[data-mml-node="merror"] > g {
+  fill: red;
+  stroke: red;
+}
+
+g[data-mml-node="merror"] > rect[data-background] {
+  fill: yellow;
+  stroke: none;
+}
+
+g[data-mml-node="mtable"] > line[data-line] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > rect[data-frame] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > .mjx-dashed {
+  stroke-dasharray: 140;
+}
+
+g[data-mml-node="mtable"] > .mjx-dotted {
+  stroke-linecap: round;
+  stroke-dasharray: 0,140;
+}
+
+g[data-mml-node="mtable"] > svg {
+  overflow: visible;
+}
+
+[jax="SVG"] mjx-tool {
+  display: inline-block;
+  position: relative;
+  width: 0;
+  height: 0;
+}
+
+[jax="SVG"] mjx-tool > mjx-tip {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+mjx-tool > mjx-tip {
+  display: inline-block;
+  padding: .2em;
+  border: 1px solid #888;
+  font-size: 70%;
+  background-color: #F8F8F8;
+  color: black;
+  box-shadow: 2px 2px 5px #AAAAAA;
+}
+
+g[data-mml-node="maction"][data-toggle] {
+  cursor: pointer;
+}
+
+mjx-status {
+  display: block;
+  position: fixed;
+  left: 1em;
+  bottom: 1em;
+  min-width: 25%;
+  padding: .2em .4em;
+  border: 1px solid #888;
+  font-size: 90%;
+  background-color: #F8F8F8;
+  color: black;
+}
+
+foreignObject[data-mjx-xml] {
+  font-family: initial;
+  line-height: normal;
+  overflow: visible;
+}
+
+.MathJax path {
+  stroke-width: 3;
+}
+
+mjx-container[display="true"] {
+  overflow: auto hidden;
+}
+
+mjx-container[display="true"] + br {
+  display: none;
+}
+</style></head><body><header><div class="top-nav" ondblclick="scrollToTop()"><div class="nav-info"><div class="nav-icon"><img id="nav-icon" src="/img/site-icon.png"/></div><div class="nav-title"><a id="nav-title" href="/" title="主页">Sine' Website</a></div></div><div class="nav-ribbon"><div class="top-menu-expanded"><a class="top-menu-item" href="/archives"><span>归档</span></a><a class="top-menu-item" href="/categories"><span>分类</span></a><a class="top-menu-item" href="/tags"><span>标签</span></a><a class="top-menu-item" href="/about"><span>关于</span></a></div><div class="top-search" onclick="toggleSearchWindow()"><div id="top-search-btn" title="搜索"><i class="icon fa-solid fa-magnifying-glass"></i><span>搜索</span></div></div><div id="top-menu-btn" onclick="openTopMenu()" title="打开菜单"><i class="fa-solid fa-bars fa-lg"></i></div></div></div></header><div id="top-menu-hidden"><div class="menu-hidden-content"><div class="menu-hidden-nav"><a class="menu-hidden-item" href="/archives"><i class="fa-solid fa-box-archive fa-sm"></i><span>归档</span></a><a class="menu-hidden-item" href="/categories"><i class="fa-regular fa-folder-open fa-sm"></i><span>分类</span></a><a class="menu-hidden-item" href="/tags"><i class="fa-solid fa-tags fa-sm"></i><span>标签</span></a><a class="menu-hidden-item" href="/about"><i class="fa-solid fa-paw fa-sm"></i><span>关于</span></a></div></div><div class="menu-hidden-blank" onclick="closeTopMenu()"></div></div>
+<div class="blog-info"><div class="blog-pic"><img id="blog-pic" src="/img/site-icon.png"/></div><div class="blog-title"><i class="fa-solid fa-paw fa-2xs fa-rotate-by"></i><span>Sine' Website</span><i class="fa-solid fa-paw fa-2xs fa-rotate-by"></i></div><div class="blog-desc">记录强化学习、GPU/系统、AI 基础设施，以及一点具身智能相关的学习笔记。</div></div><div class="main"><div class="main-content"><article class="post"><div class="post-title"><h1><i class="fa-solid fa-paw"></i>Embodied intelligence notes 3 - diffusion policy and action chunking</h1></div><div class="post-info"><div class="post-info-first-line"><div class="post-date"><i class="icon fa-regular fa-calendar-plus" title="发布日期"></i><time class="publish-time">2026-05-27</time><i class="icon fa-regular fa-calendar-check" title="更新日期"></i><time class="update-time">2026-05-27</time></div>
+<div class="post-categories"><i class="icon fa-regular fa-folder-open" title="分类"></i><a class="post-category" href="/categories/%E5%85%B7%E8%BA%AB%E6%99%BA%E8%83%BD/">具身智能</a></div>
+<div class="post-tags"><i class="icon fa-solid fa-tags" title="标签"></i><a class="post-tag" href="/tags/Embodied-AI/">Embodied AI</a><i class="icon fa-solid fa-tags" title="标签"></i><a class="post-tag" href="/tags/Robotics/">Robotics</a><i class="icon fa-solid fa-tags" title="标签"></i><a class="post-tag" href="/tags/Imitation-Learning/">Imitation Learning</a><i class="icon fa-solid fa-tags" title="标签"></i><a class="post-tag" href="/tags/Diffusion-Policy/">Diffusion Policy</a><i class="icon fa-solid fa-tags" title="标签"></i><a class="post-tag" href="/tags/Action-Chunking/">Action Chunking</a></div></div><div class="post-info-second-line"><div class="post-copyright"><i class="icon fa-brands fa-creative-commons" title="版权声明"></i><span>版权声明: </span><a target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-nd/4.0/deed.zh-hans" title="CC BY-NC-ND 4.0">署名-非商业性使用-禁止演绎 4.0</a></div>
+<div class="post-word-count"><i class="icon fa-solid fa-pen-to-square"></i><span>全文约1.2K字</span></div></div></div><div class="post-content"><p>上一篇 VLA 里写到 action
+representation。这里继续沿着动作建模往下看：为什么机器人策略里会出现
+diffusion policy 和 action chunking。</p>
+<p>先说一个直觉：机器人动作不是分类题。一个状态下“正确动作”可能不止一个，而且动作之间有连续性。抓杯子可以从左边抓，也可以从右边抓；先靠近再闭合夹爪，中间动作还要平滑。</p>
+<p>如果直接做回归，模型会倾向于预测平均动作。两个可行动作一平均，可能就变成不可行动作。</p>
+<h2 id="multi-modal-action">multi-modal action</h2>
+<p>假设同一个观测下有两条专家轨迹：</p>
+<ul>
+<li>从左边绕过去抓</li>
+<li>从右边绕过去抓</li>
+</ul>
+<p>如果用 MSE 训练一个确定性
+policy，它可能学到中间路线。中间路线不一定安全，也不一定能抓到。</p>
+<p>这就是 multi-modal action distribution
+的问题。动作分布不是单峰高斯，而是可能有多个峰。</p>
+<p>BC本身没有错，问题是policy
+family太弱。只输出一个均值时，模型没法表达“这几个动作都可以，但不要取平均”。</p>
+<h2 id="diffusion-policy">diffusion policy</h2>
+<p>Diffusion policy
+的想法是把动作序列当成生成对象。训练时给真实动作加噪声，模型学习一步步去噪。</p>
+<p>粗略过程：</p>
+<ol type="1">
+<li>取一段专家动作序列</li>
+<li>加噪声得到 noisy action</li>
+<li>模型根据观测和噪声动作预测噪声或干净动作</li>
+<li>推理时从噪声开始迭代去噪，生成一段动作</li>
+</ol>
+<p>写得更抽象一点，模型学习的是：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">denoise(noisy_action_chunk, observation, timestep) -&gt; cleaner_action_chunk</span><br></pre></td></tr></table></figure>
+<p>它的好处是能表示复杂动作分布。多个可行动作模式不需要被压成一个平均值，而可以通过采样得到不同动作序列。</p>
+<p>缺点也有：推理要多步去噪，比一次前向更慢；另外生成出来的动作还要足够平滑、可执行。</p>
+<h2 id="action-chunking">action chunking</h2>
+<p>Action chunking
+是另一个很常见的动作表示方法：不是一次只预测下一步动作，而是预测未来一小段动作。</p>
+<p>比如每次输出接下来 10 步：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">policy(o_t) -&gt; [a_t, a_{t+1}, ..., a_{t+9}]</span><br></pre></td></tr></table></figure>
+<p>执行时可以只执行前几步，然后重新观测、重新预测。这有点像 MPC 的
+receding horizon。</p>
+<p>为什么要chunk？</p>
+<ul>
+<li>单步动作太短，看不到局部意图</li>
+<li>多步动作更容易保持平滑</li>
+<li>对遥操作数据更友好，因为人类动作天然有连续片段</li>
+<li>可以减少高层模型调用频率</li>
+</ul>
+<p>但chunk太长也不好。环境变化后，后面的动作可能已经不适合了。所以实际会有一个折中：预测一段，但只执行其中一小段。</p>
+<h2 id="temporal-ensembling">temporal ensembling</h2>
+<p>如果连续多次预测action
+chunk，同一个未来时刻可能会被预测多次。可以把这些预测做加权平均，让动作更平滑。</p>
+<p>比如第<code>t+3</code>步动作，可能来自：</p>
+<ul>
+<li>当前时刻预测的第3个动作</li>
+<li>上一时刻预测的第4个动作</li>
+<li>再上一时刻预测的第5个动作</li>
+</ul>
+<p>这些预测融合起来，能减少抖动。</p>
+<p>这个技巧很工程，但在机器人里很重要。动作抖动不是视觉上不好看，而是可能真的损伤执行或导致失败。</p>
+<h2 id="relation-to-vla">relation to VLA</h2>
+<p>VLA常常强调视觉和语言，但真正落到机器人上，还是要把动作输出做好。</p>
+<p>可能的输出形式有几类：</p>
+<ul>
+<li>discrete action token</li>
+<li>continuous action regression</li>
+<li>action chunk</li>
+<li>diffusion-generated action sequence</li>
+<li>high-level skill / waypoint</li>
+</ul>
+<p>这些不是互斥的。一个系统可以高层用语言模型规划skill，低层用diffusion
+policy生成连续动作。</p>
+<p>也可以把VLA看成条件策略：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">action_model(observation, language_instruction) -&gt; action_chunk</span><br></pre></td></tr></table></figure>
+<p>区别只是在动作头上：到底是token、连续向量、还是扩散生成。</p>
+<h2 id="和rl的关系">和RL的关系</h2>
+<p>Diffusion policy大多还是 imitation learning
+思路。它解决的是“如何拟合专家动作分布”。</p>
+<p>RL可以接在后面做几件事：</p>
+<ul>
+<li>用真实成功信号微调动作生成模型</li>
+<li>对action chunk做value-guided selection</li>
+<li>在多个采样动作里选价值更高的</li>
+<li>学一个critic判断生成动作是否安全/有效</li>
+</ul>
+<p>这里有点像把policy当作proposal
+distribution，RL或planner负责选择和改进。</p>
+<h2 id="小结">小结</h2>
+<p>这篇先记几个点：</p>
+<ul>
+<li>机器人动作常常是multi-modal，直接MSE回归会平均掉动作模式</li>
+<li>diffusion policy能表达复杂动作分布，但推理更重</li>
+<li>action chunking让策略输出一段动作，提升局部一致性</li>
+<li>temporal ensembling能减小动作抖动</li>
+<li>VLA落地时，action head 的设计和视觉语言部分一样关键</li>
+</ul>
+<p>越往具身智能走，越会发现“动作”不是模型最后接一个线性层那么简单。动作表示本身就是问题的一大半。</p>
+</div><div class="post-end"><div class="post-prev"></div><div class="post-next"><a href="/2026/05/27/RL-notes-7-hierarchical-rl/" title="下一篇文章"><i class="fa-solid fa-chevron-right fa-lg"></i></a></div></div></article><div id="post-toc"><aside class="toc-aside"><div class="toc-title"><span><i class="fa-solid fa-paw"></i>目录</span></div><div class="toc-container" id="toc-body"><ol class="toc-content"><li class="toc-content-item toc-content-level-2"><a class="toc-content-link" href="#multi-modal-action"><span class="toc-content-number">1.</span> <span class="toc-content-text">multi-modal action</span></a></li><li class="toc-content-item toc-content-level-2"><a class="toc-content-link" href="#diffusion-policy"><span class="toc-content-number">2.</span> <span class="toc-content-text">diffusion policy</span></a></li><li class="toc-content-item toc-content-level-2"><a class="toc-content-link" href="#action-chunking"><span class="toc-content-number">3.</span> <span class="toc-content-text">action chunking</span></a></li><li class="toc-content-item toc-content-level-2"><a class="toc-content-link" href="#temporal-ensembling"><span class="toc-content-number">4.</span> <span class="toc-content-text">temporal ensembling</span></a></li><li class="toc-content-item toc-content-level-2"><a class="toc-content-link" href="#relation-to-vla"><span class="toc-content-number">5.</span> <span class="toc-content-text">relation to VLA</span></a></li><li class="toc-content-item toc-content-level-2"><a class="toc-content-link" href="#%E5%92%8Crl%E7%9A%84%E5%85%B3%E7%B3%BB"><span class="toc-content-number">6.</span> <span class="toc-content-text">和RL的关系</span></a></li><li class="toc-content-item toc-content-level-2"><a class="toc-content-link" href="#%E5%B0%8F%E7%BB%93"><span class="toc-content-number">7.</span> <span class="toc-content-text">小结</span></a></li></ol></div></aside><div class="toc-blank" onclick="tocToggle()"></div></div></div></div><div id="tool-bar"><div id="tool-bar-main"><div id="tool-toggle" onclick="toolToggle()" title="设置"><i class="fa-solid fa-gear"></i></div><div id="toc-toggle" onclick="tocToggle()" title="目录"><i class="fa-solid fa-list-ul"></i></div><div id="back-to-top" onclick="scrollToTop()" title="返回顶部"><i class="fa-solid fa-chevron-up"></i></div></div><div id="tool-bar-more" style="display: none;"><div id="darkmode-switch" onclick="darkmodeSwitch()" title="深色模式"><i class="fa-solid fa-circle-half-stroke"></i></div><div id="font-size-increase" onclick="fontSizeIncrease()" title="放大字体"><i class="fa-solid fa-plus"></i></div><div id="font-size-decrease" onclick="fontSizeDecrease()" title="缩小字体"><i class="fa-solid fa-minus"></i></div></div></div><div id="search-panel"><div class="search-container"><div class="search-head"><div class="search-title"><span><i class="fa-solid fa-paw"></i>搜索</span></div><div class="search-close-btn" onclick="toggleSearchWindow()"><i class="fa-regular fa-circle-xmark"></i></div></div><div class="search-box"><i class="fa-solid fa-magnifying-glass"></i><input id="search-input" type="text" placeholder="请输入需要搜索的内容……" value=""/></div><div class="search-body"><div id="search-count">匹配结果数: </div><div id="search-result"></div><div id="search-result-empty">未搜索到匹配的文章。</div></div></div></div><footer><div class="footer-content"><div class="copyright-info"><i class="fa-regular fa-copyright fa-xs"></i><span>2025 - 2026 </span><a href="/about">Wu De</a><i class="fa-solid fa-cat fa-sm"></i><span>Powered by </span><a href="https://hexo.io/" target="_blank">Hexo</a><span> &amp; </span><a href="https://github.com/chanwj/hexo-theme-meow" target="_blank" title="v2.1.2">Theme Meow</a></div></div></footer>
+<script>const GLOBAL_CONFIG = {
+  comment: { theme: ''}
+}
+</script>
+<script src="/js/third-party/darkmode.js"></script>
+<script>var options = {
+  dark: '/css/darkmode.css',
+  startAt: '24:00',
+  endAt: '06:00',
+  checkSystemScheme: 'false',
+  saveOnToggle: 'true'
+};
+var darkMode = new DarkMode(options);
+// change comment theme synchronously 同步修改评论区主题
+if (darkMode.getMode() == "dark" && (false || false)) {
+  if (document.getElementById('comment')) {
+    document.getElementById('comment').getElementsByTagName('script')[0].setAttribute('data-theme', 'noborder_dark');
+  }
+}
+</script><script>if (localStorage.getItem('font-size')) {
+  document.querySelector('.post-content').style.fontSize = localStorage.getItem('font-size') + 'px';
+}
+</script>
+<script src="/js/theme/tool-bar.js"></script>
+
+
+<script src="/js/theme/menu.js"></script>
+
+
+<script src="/js/third-party/clipboard.min.js"></script>
+
+
+<script src="/js/theme/copy.js"></script>
+<script>copyCode();
+</script>
+<script src="/js/jquery-3.7.1.min.js"></script>
+
+
+<script src="/js/theme/search.js"></script>
+<script>searchFunc('/search.xml', 'search-input', 'search-result');
+</script></body></html>

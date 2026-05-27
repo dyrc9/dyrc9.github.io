@@ -4,6 +4,39 @@
   
     
     <entry>
+      <title>Embodied intelligence notes 3 - diffusion policy and action chunking</title>
+      <link href="/2026/05/27/embodied-intelligence-notes-3-diffusion-policy/"/>
+      <url>/2026/05/27/embodied-intelligence-notes-3-diffusion-policy/</url>
+      
+        <content type="html"><![CDATA[<p>上一篇 VLA 里写到 actionrepresentation。这里继续沿着动作建模往下看：为什么机器人策略里会出现diffusion policy 和 action chunking。</p><p>先说一个直觉：机器人动作不是分类题。一个状态下“正确动作”可能不止一个，而且动作之间有连续性。抓杯子可以从左边抓，也可以从右边抓；先靠近再闭合夹爪，中间动作还要平滑。</p><p>如果直接做回归，模型会倾向于预测平均动作。两个可行动作一平均，可能就变成不可行动作。</p><h2 id="multi-modal-action">multi-modal action</h2><p>假设同一个观测下有两条专家轨迹：</p><ul><li>从左边绕过去抓</li><li>从右边绕过去抓</li></ul><p>如果用 MSE 训练一个确定性policy，它可能学到中间路线。中间路线不一定安全，也不一定能抓到。</p><p>这就是 multi-modal action distribution的问题。动作分布不是单峰高斯，而是可能有多个峰。</p><p>BC本身没有错，问题是policyfamily太弱。只输出一个均值时，模型没法表达“这几个动作都可以，但不要取平均”。</p><h2 id="diffusion-policy">diffusion policy</h2><p>Diffusion policy的想法是把动作序列当成生成对象。训练时给真实动作加噪声，模型学习一步步去噪。</p><p>粗略过程：</p><ol type="1"><li>取一段专家动作序列</li><li>加噪声得到 noisy action</li><li>模型根据观测和噪声动作预测噪声或干净动作</li><li>推理时从噪声开始迭代去噪，生成一段动作</li></ol><p>写得更抽象一点，模型学习的是：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">denoise(noisy_action_chunk, observation, timestep) -&gt; cleaner_action_chunk</span><br></pre></td></tr></table></figure><p>它的好处是能表示复杂动作分布。多个可行动作模式不需要被压成一个平均值，而可以通过采样得到不同动作序列。</p><p>缺点也有：推理要多步去噪，比一次前向更慢；另外生成出来的动作还要足够平滑、可执行。</p><h2 id="action-chunking">action chunking</h2><p>Action chunking是另一个很常见的动作表示方法：不是一次只预测下一步动作，而是预测未来一小段动作。</p><p>比如每次输出接下来 10 步：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">policy(o_t) -&gt; [a_t, a_{t+1}, ..., a_{t+9}]</span><br></pre></td></tr></table></figure><p>执行时可以只执行前几步，然后重新观测、重新预测。这有点像 MPC 的receding horizon。</p><p>为什么要chunk？</p><ul><li>单步动作太短，看不到局部意图</li><li>多步动作更容易保持平滑</li><li>对遥操作数据更友好，因为人类动作天然有连续片段</li><li>可以减少高层模型调用频率</li></ul><p>但chunk太长也不好。环境变化后，后面的动作可能已经不适合了。所以实际会有一个折中：预测一段，但只执行其中一小段。</p><h2 id="temporal-ensembling">temporal ensembling</h2><p>如果连续多次预测actionchunk，同一个未来时刻可能会被预测多次。可以把这些预测做加权平均，让动作更平滑。</p><p>比如第<code>t+3</code>步动作，可能来自：</p><ul><li>当前时刻预测的第3个动作</li><li>上一时刻预测的第4个动作</li><li>再上一时刻预测的第5个动作</li></ul><p>这些预测融合起来，能减少抖动。</p><p>这个技巧很工程，但在机器人里很重要。动作抖动不是视觉上不好看，而是可能真的损伤执行或导致失败。</p><h2 id="relation-to-vla">relation to VLA</h2><p>VLA常常强调视觉和语言，但真正落到机器人上，还是要把动作输出做好。</p><p>可能的输出形式有几类：</p><ul><li>discrete action token</li><li>continuous action regression</li><li>action chunk</li><li>diffusion-generated action sequence</li><li>high-level skill / waypoint</li></ul><p>这些不是互斥的。一个系统可以高层用语言模型规划skill，低层用diffusionpolicy生成连续动作。</p><p>也可以把VLA看成条件策略：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">action_model(observation, language_instruction) -&gt; action_chunk</span><br></pre></td></tr></table></figure><p>区别只是在动作头上：到底是token、连续向量、还是扩散生成。</p><h2 id="和rl的关系">和RL的关系</h2><p>Diffusion policy大多还是 imitation learning思路。它解决的是“如何拟合专家动作分布”。</p><p>RL可以接在后面做几件事：</p><ul><li>用真实成功信号微调动作生成模型</li><li>对action chunk做value-guided selection</li><li>在多个采样动作里选价值更高的</li><li>学一个critic判断生成动作是否安全/有效</li></ul><p>这里有点像把policy当作proposaldistribution，RL或planner负责选择和改进。</p><h2 id="小结">小结</h2><p>这篇先记几个点：</p><ul><li>机器人动作常常是multi-modal，直接MSE回归会平均掉动作模式</li><li>diffusion policy能表达复杂动作分布，但推理更重</li><li>action chunking让策略输出一段动作，提升局部一致性</li><li>temporal ensembling能减小动作抖动</li><li>VLA落地时，action head 的设计和视觉语言部分一样关键</li></ul><p>越往具身智能走，越会发现“动作”不是模型最后接一个线性层那么简单。动作表示本身就是问题的一大半。</p>]]></content>
+      
+      
+      <categories>
+          
+          <category> 具身智能 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> Embodied AI </tag>
+            
+            <tag> Robotics </tag>
+            
+            <tag> Imitation Learning </tag>
+            
+            <tag> Diffusion Policy </tag>
+            
+            <tag> Action Chunking </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
       <title>RL notes 7 - hierarchical RL and skills</title>
       <link href="/2026/05/27/RL-notes-7-hierarchical-rl/"/>
       <url>/2026/05/27/RL-notes-7-hierarchical-rl/</url>
@@ -322,7 +355,7 @@
       <link href="/2025/02/12/site-notes/"/>
       <url>/2025/02/12/site-notes/</url>
       
-        <content type="html"><![CDATA[<p>这个站点暂时不会被包装成很完整的作品集。它更像一个可以公开翻阅的工作台：读论文时的脉络、做实验时的坑、某个系统概念终于想清楚的一刻，都会先放在这里。</p><p>目前主要会写这些方向：</p><ul><li>强化学习与相关论文笔记</li><li>GPU、MIG、系统隔离与资源调度</li><li>AI 基础设施和工程实践</li><li>一些值得留下来的学习过程</li></ul><p>现在强化学习这条线已经先整理成几篇连续笔记：</p><ul><li>MDP、价值函数、Bellman equation</li><li>动态规划、TD、DQN、策略梯度</li><li>policy gradient、Actor-Critic、PPO</li><li>Offline RL 以及它和机器人数据的关系</li><li>连续控制、DDPG、TD3、SAC</li><li>Model-based RL 和 world model</li><li>Hierarchical RL、skill learning、options</li><li>具身智能中的 VLA、机器人数据和分层策略</li></ul><p>后面会继续补具身智能相关内容。这里暂时不追求每篇都像正式教程，更希望保留一点“当时怎么想清楚”的过程。</p>]]></content>
+        <content type="html"><![CDATA[<p>这个站点暂时不会被包装成很完整的作品集。它更像一个可以公开翻阅的工作台：读论文时的脉络、做实验时的坑、某个系统概念终于想清楚的一刻，都会先放在这里。</p><p>目前主要会写这些方向：</p><ul><li>强化学习与相关论文笔记</li><li>GPU、MIG、系统隔离与资源调度</li><li>AI 基础设施和工程实践</li><li>一些值得留下来的学习过程</li></ul><p>现在强化学习这条线已经先整理成几篇连续笔记：</p><ul><li>MDP、价值函数、Bellman equation</li><li>动态规划、TD、DQN、策略梯度</li><li>policy gradient、Actor-Critic、PPO</li><li>Offline RL 以及它和机器人数据的关系</li><li>连续控制、DDPG、TD3、SAC</li><li>Model-based RL 和 world model</li><li>Hierarchical RL、skill learning、options</li><li>具身智能中的 VLA、机器人数据和分层策略</li><li>Diffusion policy、action chunking 和动作表示</li></ul><p>后面会继续补具身智能相关内容。这里暂时不追求每篇都像正式教程，更希望保留一点“当时怎么想清楚”的过程。</p>]]></content>
       
       
       <categories>
