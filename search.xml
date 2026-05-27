@@ -4,6 +4,39 @@
   
     
     <entry>
+      <title>RL notes 7 - hierarchical RL and skills</title>
+      <link href="/2026/05/27/RL-notes-7-hierarchical-rl/"/>
+      <url>/2026/05/27/RL-notes-7-hierarchical-rl/</url>
+      
+        <content type="html"><![CDATA[<p>前面写连续控制时，action还是一步控制量；写VLA时，又提到长程任务经常需要hierarchy。这里补一下中间这层：hierarchicalRL / skill learning。</p><p>最朴素的问题是：如果任务很长，智能体每一步都从最底层动作开始决策，会非常难学。比如“打开抽屉拿杯子放到桌上”，低层动作可能是几百个关节控制命令，但人理解任务时不会按这个粒度想。</p><p>人更像是在想：</p><ul><li>reach drawer</li><li>pull handle</li><li>grasp cup</li><li>move to table</li><li>release</li></ul><p>这些中间动作片段就可以看成skill。</p><h2 id="option">option</h2><p>Option framework 把一个高层动作定义成三部分：</p><ul><li>initiation set：哪些状态可以开始这个option</li><li>intra-option policy：option内部怎么行动</li><li>termination condition：什么时候结束</li></ul><p>粗略写成：</p><p><span class="math display"><em>o</em> = (<em>I</em><sub><em>o</em></sub>, <em>π</em><sub><em>o</em></sub>, <em>β</em><sub><em>o</em></sub>)</span></p><p>其中<span class="math inline"><em>β</em><sub><em>o</em></sub>(<em>s</em>)</span>表示在状态<span class="math inline"><em>s</em></span>结束option的概率。</p><p>普通MDP每一步选primitive action；hierarchicalRL里，高层policy选option，option内部执行若干步动作，直到触发termination。</p><p>直觉上，option把时间尺度拉长了。高层不需要每个timestep都管细节，只需要决定现在用哪个skill。</p><h2 id="temporal-abstraction">temporal abstraction</h2><p>分层的关键是 temporalabstraction。一个skill持续多步，所以高层决策频率更低。</p><p>这带来两个好处：</p><ul><li>长程任务的credit assignment更短一些</li><li>探索可以在skill空间里进行，而不是原始动作空间</li></ul><p>比如机器人已经学会<code>grasp</code>和<code>place</code>，那么新任务只需要组合skill，而不是重新从关节动作探索。</p><p>但坏处也明显：如果skill本身不好，高层再聪明也没用。skill的边界、启动条件、终止条件都会影响最终表现。</p><h2 id="skill-discovery">skill discovery</h2><p>skill可以人工定义，也可以自动发现。</p><p>人工定义的skill更可靠，比如导航、抓取、开门。但它依赖工程经验，泛化有限。</p><p>自动发现skill常见思路是鼓励多样性或可区分性。比如希望不同skill能把智能体带到不同状态区域，这样高层有更多可选行为。</p><p>可以把skill记成一个隐变量<span class="math inline"><em>z</em></span>：</p><p><span class="math display"><em>a</em><sub><em>t</em></sub> ∼ <em>π</em>(<em>a</em><sub><em>t</em></sub>|<em>s</em><sub><em>t</em></sub>, <em>z</em>)</span></p><p>不同<span class="math inline"><em>z</em></span>对应不同skill。训练时鼓励轨迹能反推出<span class="math inline"><em>z</em></span>，也就是skill之间要有可区分行为。</p><p>不过这类unsupervised skilldiscovery有个问题：发现出来的skill不一定对任务有用。模型可能学会原地转圈、来回移动这种“可区分但没意义”的行为。</p><p>所以实际任务里，skilldiscovery经常还要和任务奖励、数据先验或人工约束结合。</p><h2 id="goal-conditioned-policy">goal-conditioned policy</h2><p>另一条常见路线是 goal-conditioned policy：</p><p><span class="math display"><em>a</em><sub><em>t</em></sub> ∼ <em>π</em>(<em>a</em><sub><em>t</em></sub>|<em>s</em><sub><em>t</em></sub>, <em>g</em>)</span></p><p>这里<span class="math inline"><em>g</em></span>可以是目标位置、目标图像、语言目标或latentgoal。</p><p>如果policy能根据不同goal行动，那么高层planner只要给出一串子目标。这样skill不一定是离散的option，也可以是连续目标条件下的控制器。</p><p>机器人里这很自然。比如高层决定“末端移动到杯子上方”，低层policy负责从当前姿态到目标位姿。</p><p>这和VLA里的语言指令也能接起来：语言给高层goal，视觉定位目标，低层执行goal-conditionedcontrol。</p><h2 id="hierarchy和planning">hierarchy和planning</h2><p>分层结构经常和planning放在一起。</p><p>如果有world model，高层可以在抽象状态上规划：</p><ul><li>当前有哪些对象</li><li>每个对象的关系</li><li>哪些skill可用</li><li>执行skill后状态怎么变</li></ul><p>低层不需要知道完整任务，只需要把当前skill执行好。</p><p>这有点像 classical planning + learned skill policy的混合。符号规划负责长程结构，神经策略负责感知和控制。</p><p>纯端到端策略当然更简洁，但长程任务里解释性和可调试性会差。分层方法至少让错误更容易定位：是planner选错了，还是skill执行失败。</p><h2 id="和具身智能的关系">和具身智能的关系</h2><p>具身智能里hierarchy几乎绕不开，因为真实任务天然跨时间尺度：</p><ul><li>视觉识别是短时刻</li><li>抓取是几秒</li><li>整理房间是几分钟</li><li>和人协作可能更久</li></ul><p>一个模型如果每一步都直接输出低层动作，会很难记住任务进度。分层后，高层可以维护任务状态，低层专心做局部控制。</p><p>VLA模型里也有类似问题。语言指令可能是高层goal，但动作输出是低层控制。中间如果没有子目标或skill，模型需要自己在隐状态里学出层级结构。</p><p>这也是我觉得hierarchicalRL仍然有价值的原因：它给了一个很清楚的问题分解。</p><h2 id="小结">小结</h2><p>这条线可以这样记：</p><ul><li>option：把一个高层动作封装成多步policy</li><li>temporal abstraction：减少高层决策频率</li><li>skill discovery：自动找可复用行为，但不一定任务相关</li><li>goal-conditioned policy：用目标调节低层控制器</li><li>hierarchy + planning：适合长程具身任务</li></ul><p>从RL走到robot policy，action的含义会不断变大：从primitiveaction，到continuouscontrol，再到skill，最后可能变成语言条件下的子任务。</p>]]></content>
+      
+      
+      <categories>
+          
+          <category> 强化学习 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> RL </tag>
+            
+            <tag> Robotics </tag>
+            
+            <tag> Hierarchical RL </tag>
+            
+            <tag> Skill Learning </tag>
+            
+            <tag> Options </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
       <title>Embodied intelligence notes 2 - VLA and robot data</title>
       <link href="/2026/05/27/embodied-intelligence-notes-2-vla/"/>
       <url>/2026/05/27/embodied-intelligence-notes-2-vla/</url>
@@ -289,7 +322,7 @@
       <link href="/2025/02/12/site-notes/"/>
       <url>/2025/02/12/site-notes/</url>
       
-        <content type="html"><![CDATA[<p>这个站点暂时不会被包装成很完整的作品集。它更像一个可以公开翻阅的工作台：读论文时的脉络、做实验时的坑、某个系统概念终于想清楚的一刻，都会先放在这里。</p><p>目前主要会写这些方向：</p><ul><li>强化学习与相关论文笔记</li><li>GPU、MIG、系统隔离与资源调度</li><li>AI 基础设施和工程实践</li><li>一些值得留下来的学习过程</li></ul><p>现在强化学习这条线已经先整理成几篇连续笔记：</p><ul><li>MDP、价值函数、Bellman equation</li><li>动态规划、TD、DQN、策略梯度</li><li>policy gradient、Actor-Critic、PPO</li><li>Offline RL 以及它和机器人数据的关系</li><li>连续控制、DDPG、TD3、SAC</li><li>Model-based RL 和 world model</li><li>具身智能中的 VLA、机器人数据和分层策略</li></ul><p>后面会继续补具身智能相关内容。这里暂时不追求每篇都像正式教程，更希望保留一点“当时怎么想清楚”的过程。</p>]]></content>
+        <content type="html"><![CDATA[<p>这个站点暂时不会被包装成很完整的作品集。它更像一个可以公开翻阅的工作台：读论文时的脉络、做实验时的坑、某个系统概念终于想清楚的一刻，都会先放在这里。</p><p>目前主要会写这些方向：</p><ul><li>强化学习与相关论文笔记</li><li>GPU、MIG、系统隔离与资源调度</li><li>AI 基础设施和工程实践</li><li>一些值得留下来的学习过程</li></ul><p>现在强化学习这条线已经先整理成几篇连续笔记：</p><ul><li>MDP、价值函数、Bellman equation</li><li>动态规划、TD、DQN、策略梯度</li><li>policy gradient、Actor-Critic、PPO</li><li>Offline RL 以及它和机器人数据的关系</li><li>连续控制、DDPG、TD3、SAC</li><li>Model-based RL 和 world model</li><li>Hierarchical RL、skill learning、options</li><li>具身智能中的 VLA、机器人数据和分层策略</li></ul><p>后面会继续补具身智能相关内容。这里暂时不追求每篇都像正式教程，更希望保留一点“当时怎么想清楚”的过程。</p>]]></content>
       
       
       <categories>
