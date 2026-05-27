@@ -1,0 +1,307 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="author" content="Wu De"/><meta name="description" content="Wu De 的个人主页，记录强化学习、GPU/系统、AI 基础设施、具身智能和日常学习笔记。"/><meta name="keyword" content="强化学习,GPU,MIG,系统,AI,具身智能,博客"/><meta name="description" content="具身智能的评估不能只看success rate，还要看重置成本、失败模式、分布外扰动和策略是否能恢复。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Embodied intelligence notes 4 - evaluation and failure modes">
+<meta property="og:url" content="https://dyrc9.github.io/2026/05/27/embodied-intelligence-notes-4-evaluation/index.html">
+<meta property="og:site_name" content="Sine&#39; Website">
+<meta property="og:description" content="具身智能的评估不能只看success rate，还要看重置成本、失败模式、分布外扰动和策略是否能恢复。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-05-27T05:45:00.000Z">
+<meta property="article:modified_time" content="2026-05-27T05:45:00.000Z">
+<meta property="article:author" content="Wu De">
+<meta property="article:tag" content="Embodied AI">
+<meta property="article:tag" content="Robotics">
+<meta property="article:tag" content="Evaluation">
+<meta property="article:tag" content="Failure Modes">
+<meta property="article:tag" content="Safety">
+<meta name="twitter:card" content="summary"><title>Embodied intelligence notes 4 - evaluation and failure modes - Sine' Website - notes, systems, and small experiments</title><link rel="shortcut icon" href="/img/site-icon.png">
+<link rel="stylesheet" href="/css/style.css" id="dm-light">
+
+
+<link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+<meta name="generator" content="Hexo 7.3.0"><style>mjx-container[jax="SVG"] {
+  direction: ltr;
+}
+
+mjx-container[jax="SVG"] > svg {
+  overflow: visible;
+}
+
+mjx-container[jax="SVG"][display="true"] {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+}
+
+mjx-container[jax="SVG"][justify="left"] {
+  text-align: left;
+}
+
+mjx-container[jax="SVG"][justify="right"] {
+  text-align: right;
+}
+
+g[data-mml-node="merror"] > g {
+  fill: red;
+  stroke: red;
+}
+
+g[data-mml-node="merror"] > rect[data-background] {
+  fill: yellow;
+  stroke: none;
+}
+
+g[data-mml-node="mtable"] > line[data-line] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > rect[data-frame] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > .mjx-dashed {
+  stroke-dasharray: 140;
+}
+
+g[data-mml-node="mtable"] > .mjx-dotted {
+  stroke-linecap: round;
+  stroke-dasharray: 0,140;
+}
+
+g[data-mml-node="mtable"] > svg {
+  overflow: visible;
+}
+
+[jax="SVG"] mjx-tool {
+  display: inline-block;
+  position: relative;
+  width: 0;
+  height: 0;
+}
+
+[jax="SVG"] mjx-tool > mjx-tip {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+mjx-tool > mjx-tip {
+  display: inline-block;
+  padding: .2em;
+  border: 1px solid #888;
+  font-size: 70%;
+  background-color: #F8F8F8;
+  color: black;
+  box-shadow: 2px 2px 5px #AAAAAA;
+}
+
+g[data-mml-node="maction"][data-toggle] {
+  cursor: pointer;
+}
+
+mjx-status {
+  display: block;
+  position: fixed;
+  left: 1em;
+  bottom: 1em;
+  min-width: 25%;
+  padding: .2em .4em;
+  border: 1px solid #888;
+  font-size: 90%;
+  background-color: #F8F8F8;
+  color: black;
+}
+
+foreignObject[data-mjx-xml] {
+  font-family: initial;
+  line-height: normal;
+  overflow: visible;
+}
+
+.MathJax path {
+  stroke-width: 3;
+}
+
+mjx-container[display="true"] {
+  overflow: auto hidden;
+}
+
+mjx-container[display="true"] + br {
+  display: none;
+}
+</style></head><body><header><div class="top-nav" ondblclick="scrollToTop()"><div class="nav-info"><div class="nav-icon"><img id="nav-icon" src="/img/site-icon.png"/></div><div class="nav-title"><a id="nav-title" href="/" title="主页">Sine' Website</a></div></div><div class="nav-ribbon"><div class="top-menu-expanded"><a class="top-menu-item" href="/archives"><span>归档</span></a><a class="top-menu-item" href="/categories"><span>分类</span></a><a class="top-menu-item" href="/tags"><span>标签</span></a><a class="top-menu-item" href="/notes"><span>笔记</span></a><a class="top-menu-item" href="/about"><span>关于</span></a></div><div class="top-search" onclick="toggleSearchWindow()"><div id="top-search-btn" title="搜索"><i class="icon fa-solid fa-magnifying-glass"></i><span>搜索</span></div></div><div id="top-menu-btn" onclick="openTopMenu()" title="打开菜单"><i class="fa-solid fa-bars fa-lg"></i></div></div></div></header><div id="top-menu-hidden"><div class="menu-hidden-content"><div class="menu-hidden-nav"><a class="menu-hidden-item" href="/archives"><i class="fa-solid fa-box-archive fa-sm"></i><span>归档</span></a><a class="menu-hidden-item" href="/categories"><i class="fa-regular fa-folder-open fa-sm"></i><span>分类</span></a><a class="menu-hidden-item" href="/tags"><i class="fa-solid fa-tags fa-sm"></i><span>标签</span></a><a class="menu-hidden-item" href="/notes"><i class="fa-solid fa-paw fa-sm"></i><span>笔记</span></a><a class="menu-hidden-item" href="/about"><i class="fa-solid fa-paw fa-sm"></i><span>关于</span></a></div></div><div class="menu-hidden-blank" onclick="closeTopMenu()"></div></div>
+<div class="blog-info"><div class="blog-pic"><img id="blog-pic" src="/img/site-icon.png"/></div><div class="blog-title"><i class="fa-solid fa-paw fa-2xs fa-rotate-by"></i><span>Sine' Website</span><i class="fa-solid fa-paw fa-2xs fa-rotate-by"></i></div><div class="blog-desc">记录强化学习、GPU/系统、AI 基础设施，以及一点具身智能相关的学习笔记。</div></div><div class="main"><div class="main-content"><article class="post"><div class="post-title"><h1><i class="fa-solid fa-paw"></i>Embodied intelligence notes 4 - evaluation and failure modes</h1></div><div class="post-info"><div class="post-info-first-line"><div class="post-date"><i class="icon fa-regular fa-calendar-plus" title="发布日期"></i><time class="publish-time">2026-05-27</time><i class="icon fa-regular fa-calendar-check" title="更新日期"></i><time class="update-time">2026-05-27</time></div>
+<div class="post-categories"><i class="icon fa-regular fa-folder-open" title="分类"></i><a class="post-category" href="/categories/%E5%85%B7%E8%BA%AB%E6%99%BA%E8%83%BD/">具身智能</a></div>
+<div class="post-tags"><i class="icon fa-solid fa-tags" title="标签"></i><a class="post-tag" href="/tags/Embodied-AI/">Embodied AI</a><i class="icon fa-solid fa-tags" title="标签"></i><a class="post-tag" href="/tags/Robotics/">Robotics</a><i class="icon fa-solid fa-tags" title="标签"></i><a class="post-tag" href="/tags/Evaluation/">Evaluation</a><i class="icon fa-solid fa-tags" title="标签"></i><a class="post-tag" href="/tags/Failure-Modes/">Failure Modes</a><i class="icon fa-solid fa-tags" title="标签"></i><a class="post-tag" href="/tags/Safety/">Safety</a></div></div><div class="post-info-second-line"><div class="post-copyright"><i class="icon fa-brands fa-creative-commons" title="版权声明"></i><span>版权声明: </span><a target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-nd/4.0/deed.zh-hans" title="CC BY-NC-ND 4.0">署名-非商业性使用-禁止演绎 4.0</a></div>
+<div class="post-word-count"><i class="icon fa-solid fa-pen-to-square"></i><span>全文约1.3K字</span></div></div></div><div class="post-content"><p>前面几篇主要在写策略怎么学：VLA、diffusion policy、action
+chunking、hierarchy。这里换个角度：怎么评估一个机器人策略真的好？</p>
+<p>在普通ML任务里，评估经常是跑一个test
+set；机器人不太一样。一次失败可能意味着物体掉了、场景要重置、机械臂进入奇怪姿态，甚至需要人工介入。所以评估本身也是系统的一部分。</p>
+<h2 id="success-rate-不够">success rate 不够</h2>
+<p>最常见指标当然是 success rate：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">success rate = 成功次数 / 总尝试次数</span><br></pre></td></tr></table></figure>
+<p>但这个指标会丢掉很多信息。比如两个策略都是80%成功：</p>
+<ul>
+<li>A策略失败时只是没抓起来，可以很快重试</li>
+<li>B策略失败时会把杯子扫到桌下，需要人工重置</li>
+</ul>
+<p>两者的部署价值完全不同。</p>
+<p>所以评估时至少还要看：</p>
+<ul>
+<li>failure severity</li>
+<li>recovery ability</li>
+<li>intervention count</li>
+<li>task completion time</li>
+<li>trajectory smoothness</li>
+<li>safety margin</li>
+</ul>
+<p>机器人不是只要“最后成功”就行，中间过程也很重要。</p>
+<h2 id="intervention">intervention</h2>
+<p>真实机器人实验里，经常会记录 human
+intervention。比如策略执行到一半卡住，需要人暂停、扶正物体、重置机械臂。</p>
+<p>intervention count 有时比success
+rate更敏感。一个策略可能最后能成功，但每次都要人帮一次，那就不算真正可用。</p>
+<p>可以粗略分几类：</p>
+<ul>
+<li>no intervention：完全自主完成</li>
+<li>soft intervention：人类给一个提示或重新指定目标</li>
+<li>hard intervention：需要物理重置环境</li>
+<li>emergency stop：安全相关中断</li>
+</ul>
+<p>不同级别的intervention成本差异很大，不能都算成同一个失败。</p>
+<h2 id="distribution-shift">distribution shift</h2>
+<p>具身策略最怕训练环境和测试环境差一点。</p>
+<p>常见shift：</p>
+<ul>
+<li>光照变化</li>
+<li>相机位置轻微移动</li>
+<li>物体材质变化</li>
+<li>物体初始位置变化</li>
+<li>背景杂物变化</li>
+<li>机器人关节或夹爪有磨损</li>
+</ul>
+<p>有些变化对人来说很小，但对视觉策略可能是很大的分布外输入。</p>
+<p>所以评估时最好不要只测一个干净场景。可以人为做一些扰动：</p>
+<ul>
+<li>object pose randomization</li>
+<li>distractor objects</li>
+<li>camera viewpoint shift</li>
+<li>lighting change</li>
+<li>partial occlusion</li>
+</ul>
+<p>如果策略只在一个固定桌面上成功，意义有限。</p>
+<h2 id="failure-taxonomy">failure taxonomy</h2>
+<p>记录失败时，不要只写 failed。最好拆成类型。</p>
+<p>抓取任务里常见失败：</p>
+<ul>
+<li>detection failure：没找到目标</li>
+<li>bad affordance：抓取点不可行</li>
+<li>collision：路径碰到物体</li>
+<li>slip：抓住后滑落</li>
+<li>premature release：过早松开</li>
+<li>timeout：一直犹豫或重复动作</li>
+<li>recovery failure：失败后不会重试</li>
+</ul>
+<p>这些失败对应不同改进方向。detection
+failure可能要改视觉；slip可能要改夹爪控制或触觉反馈；timeout可能是policy不确定性太高。</p>
+<p>分类失败模式的价值是让下一步迭代有方向，而不是盲目加数据。</p>
+<h2 id="robustness-vs-generalization">robustness vs generalization</h2>
+<p>robustness和generalization有点像，但不完全一样。</p>
+<p>robustness更像是在同一任务附近抗扰动：杯子移动一点、光线变暗一点、相机抖一点。</p>
+<p>generalization则是跨任务或跨对象：从红色杯子泛化到透明杯子，从方块堆叠泛化到餐具摆放。</p>
+<p>一个策略可以很robust但不generalize。比如它在一种杯子上非常稳，但换一个形状就不行。</p>
+<p>评估时最好明确自己在测哪一个，不然结果会很含糊。</p>
+<h2 id="online-adaptation">online adaptation</h2>
+<p>真实机器人里，策略不一定要一次成功。它可以观察失败，然后调整。</p>
+<p>比如抓取失败后：</p>
+<ol type="1">
+<li>重新观察物体位置</li>
+<li>判断是否滑落</li>
+<li>换一个抓取方向</li>
+<li>再试一次</li>
+</ol>
+<p>这种 recovery loop
+很关键。很多benchmark只看单次attempt，但真实系统更像一个闭环。</p>
+<p>如果策略能从失败中恢复，它的有效成功率会高很多。这里就又回到RL和planning：失败不是episode结束，而是新的状态。</p>
+<h2 id="safety">safety</h2>
+<p>安全评估不能靠平均指标。</p>
+<p>即使99次成功，1次高速撞桌也不能接受。机器人策略里需要特别关注尾部风险：</p>
+<ul>
+<li>最大接触力</li>
+<li>最小距离</li>
+<li>速度/加速度限制</li>
+<li>是否进入不可恢复姿态</li>
+<li>是否可能损坏物体</li>
+</ul>
+<p>这和RL里的expected return不完全一致。expected
+return可能会掩盖低概率高损失事件。</p>
+<p>因此部署时常常需要额外的 safety
+layer，例如动作限幅、碰撞检测、workspace限制、急停机制等。</p>
+<h2 id="evaluation-protocol">evaluation protocol</h2>
+<p>一个比较朴素但可复用的评估记录可以包含：</p>
+<ul>
+<li>task name</li>
+<li>object set</li>
+<li>initial state distribution</li>
+<li>number of trials</li>
+<li>success definition</li>
+<li>intervention definition</li>
+<li>failure categories</li>
+<li>environment variations</li>
+<li>safety constraints</li>
+</ul>
+<p>这些东西写清楚后，结果才可比较。不然一句“成功率90%”其实信息量很小。</p>
+<h2 id="小结">小结</h2>
+<p>具身智能评估可以先记几个问题：</p>
+<ul>
+<li>成功率之外，失败有多严重？</li>
+<li>需要多少人类介入？</li>
+<li>环境扰动后还能不能做？</li>
+<li>失败模式具体是哪类？</li>
+<li>策略能不能恢复？</li>
+<li>有没有低概率高损失风险？</li>
+</ul>
+<p>很多时候，评估不是最后一步，而是下一轮数据收集和模型改进的起点。策略在哪里失败，下一批数据就应该围绕那里补。</p>
+</div><div class="post-end"><div class="post-prev"></div><div class="post-next"><a href="/2026/05/27/embodied-intelligence-notes-3-diffusion-policy/" title="下一篇文章"><i class="fa-solid fa-chevron-right fa-lg"></i></a></div></div></article><div id="post-toc"><aside class="toc-aside"><div class="toc-title"><span><i class="fa-solid fa-paw"></i>目录</span></div><div class="toc-container" id="toc-body"><ol class="toc-content"><li class="toc-content-item toc-content-level-2"><a class="toc-content-link" href="#success-rate-%E4%B8%8D%E5%A4%9F"><span class="toc-content-number">1.</span> <span class="toc-content-text">success rate 不够</span></a></li><li class="toc-content-item toc-content-level-2"><a class="toc-content-link" href="#intervention"><span class="toc-content-number">2.</span> <span class="toc-content-text">intervention</span></a></li><li class="toc-content-item toc-content-level-2"><a class="toc-content-link" href="#distribution-shift"><span class="toc-content-number">3.</span> <span class="toc-content-text">distribution shift</span></a></li><li class="toc-content-item toc-content-level-2"><a class="toc-content-link" href="#failure-taxonomy"><span class="toc-content-number">4.</span> <span class="toc-content-text">failure taxonomy</span></a></li><li class="toc-content-item toc-content-level-2"><a class="toc-content-link" href="#robustness-vs-generalization"><span class="toc-content-number">5.</span> <span class="toc-content-text">robustness vs generalization</span></a></li><li class="toc-content-item toc-content-level-2"><a class="toc-content-link" href="#online-adaptation"><span class="toc-content-number">6.</span> <span class="toc-content-text">online adaptation</span></a></li><li class="toc-content-item toc-content-level-2"><a class="toc-content-link" href="#safety"><span class="toc-content-number">7.</span> <span class="toc-content-text">safety</span></a></li><li class="toc-content-item toc-content-level-2"><a class="toc-content-link" href="#evaluation-protocol"><span class="toc-content-number">8.</span> <span class="toc-content-text">evaluation protocol</span></a></li><li class="toc-content-item toc-content-level-2"><a class="toc-content-link" href="#%E5%B0%8F%E7%BB%93"><span class="toc-content-number">9.</span> <span class="toc-content-text">小结</span></a></li></ol></div></aside><div class="toc-blank" onclick="tocToggle()"></div></div></div></div><div id="tool-bar"><div id="tool-bar-main"><div id="tool-toggle" onclick="toolToggle()" title="设置"><i class="fa-solid fa-gear"></i></div><div id="toc-toggle" onclick="tocToggle()" title="目录"><i class="fa-solid fa-list-ul"></i></div><div id="back-to-top" onclick="scrollToTop()" title="返回顶部"><i class="fa-solid fa-chevron-up"></i></div></div><div id="tool-bar-more" style="display: none;"><div id="darkmode-switch" onclick="darkmodeSwitch()" title="深色模式"><i class="fa-solid fa-circle-half-stroke"></i></div><div id="font-size-increase" onclick="fontSizeIncrease()" title="放大字体"><i class="fa-solid fa-plus"></i></div><div id="font-size-decrease" onclick="fontSizeDecrease()" title="缩小字体"><i class="fa-solid fa-minus"></i></div></div></div><div id="search-panel"><div class="search-container"><div class="search-head"><div class="search-title"><span><i class="fa-solid fa-paw"></i>搜索</span></div><div class="search-close-btn" onclick="toggleSearchWindow()"><i class="fa-regular fa-circle-xmark"></i></div></div><div class="search-box"><i class="fa-solid fa-magnifying-glass"></i><input id="search-input" type="text" placeholder="请输入需要搜索的内容……" value=""/></div><div class="search-body"><div id="search-count">匹配结果数: </div><div id="search-result"></div><div id="search-result-empty">未搜索到匹配的文章。</div></div></div></div><footer><div class="footer-content"><div class="copyright-info"><i class="fa-regular fa-copyright fa-xs"></i><span>2025 - 2026 </span><a href="/about">Wu De</a><i class="fa-solid fa-cat fa-sm"></i><span>Powered by </span><a href="https://hexo.io/" target="_blank">Hexo</a><span> &amp; </span><a href="https://github.com/chanwj/hexo-theme-meow" target="_blank" title="v2.1.2">Theme Meow</a></div></div></footer>
+<script>const GLOBAL_CONFIG = {
+  comment: { theme: ''}
+}
+</script>
+<script src="/js/third-party/darkmode.js"></script>
+<script>var options = {
+  dark: '/css/darkmode.css',
+  startAt: '24:00',
+  endAt: '06:00',
+  checkSystemScheme: 'false',
+  saveOnToggle: 'true'
+};
+var darkMode = new DarkMode(options);
+// change comment theme synchronously 同步修改评论区主题
+if (darkMode.getMode() == "dark" && (false || false)) {
+  if (document.getElementById('comment')) {
+    document.getElementById('comment').getElementsByTagName('script')[0].setAttribute('data-theme', 'noborder_dark');
+  }
+}
+</script><script>if (localStorage.getItem('font-size')) {
+  document.querySelector('.post-content').style.fontSize = localStorage.getItem('font-size') + 'px';
+}
+</script>
+<script src="/js/theme/tool-bar.js"></script>
+
+
+<script src="/js/theme/menu.js"></script>
+
+
+<script src="/js/third-party/clipboard.min.js"></script>
+
+
+<script src="/js/theme/copy.js"></script>
+<script>copyCode();
+</script>
+<script src="/js/jquery-3.7.1.min.js"></script>
+
+
+<script src="/js/theme/search.js"></script>
+<script>searchFunc('/search.xml', 'search-input', 'search-result');
+</script></body></html>

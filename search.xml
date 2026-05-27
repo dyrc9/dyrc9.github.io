@@ -4,6 +4,39 @@
   
     
     <entry>
+      <title>Embodied intelligence notes 4 - evaluation and failure modes</title>
+      <link href="/2026/05/27/embodied-intelligence-notes-4-evaluation/"/>
+      <url>/2026/05/27/embodied-intelligence-notes-4-evaluation/</url>
+      
+        <content type="html"><![CDATA[<p>前面几篇主要在写策略怎么学：VLA、diffusion policy、actionchunking、hierarchy。这里换个角度：怎么评估一个机器人策略真的好？</p><p>在普通ML任务里，评估经常是跑一个testset；机器人不太一样。一次失败可能意味着物体掉了、场景要重置、机械臂进入奇怪姿态，甚至需要人工介入。所以评估本身也是系统的一部分。</p><h2 id="success-rate-不够">success rate 不够</h2><p>最常见指标当然是 success rate：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">success rate = 成功次数 / 总尝试次数</span><br></pre></td></tr></table></figure><p>但这个指标会丢掉很多信息。比如两个策略都是80%成功：</p><ul><li>A策略失败时只是没抓起来，可以很快重试</li><li>B策略失败时会把杯子扫到桌下，需要人工重置</li></ul><p>两者的部署价值完全不同。</p><p>所以评估时至少还要看：</p><ul><li>failure severity</li><li>recovery ability</li><li>intervention count</li><li>task completion time</li><li>trajectory smoothness</li><li>safety margin</li></ul><p>机器人不是只要“最后成功”就行，中间过程也很重要。</p><h2 id="intervention">intervention</h2><p>真实机器人实验里，经常会记录 humanintervention。比如策略执行到一半卡住，需要人暂停、扶正物体、重置机械臂。</p><p>intervention count 有时比successrate更敏感。一个策略可能最后能成功，但每次都要人帮一次，那就不算真正可用。</p><p>可以粗略分几类：</p><ul><li>no intervention：完全自主完成</li><li>soft intervention：人类给一个提示或重新指定目标</li><li>hard intervention：需要物理重置环境</li><li>emergency stop：安全相关中断</li></ul><p>不同级别的intervention成本差异很大，不能都算成同一个失败。</p><h2 id="distribution-shift">distribution shift</h2><p>具身策略最怕训练环境和测试环境差一点。</p><p>常见shift：</p><ul><li>光照变化</li><li>相机位置轻微移动</li><li>物体材质变化</li><li>物体初始位置变化</li><li>背景杂物变化</li><li>机器人关节或夹爪有磨损</li></ul><p>有些变化对人来说很小，但对视觉策略可能是很大的分布外输入。</p><p>所以评估时最好不要只测一个干净场景。可以人为做一些扰动：</p><ul><li>object pose randomization</li><li>distractor objects</li><li>camera viewpoint shift</li><li>lighting change</li><li>partial occlusion</li></ul><p>如果策略只在一个固定桌面上成功，意义有限。</p><h2 id="failure-taxonomy">failure taxonomy</h2><p>记录失败时，不要只写 failed。最好拆成类型。</p><p>抓取任务里常见失败：</p><ul><li>detection failure：没找到目标</li><li>bad affordance：抓取点不可行</li><li>collision：路径碰到物体</li><li>slip：抓住后滑落</li><li>premature release：过早松开</li><li>timeout：一直犹豫或重复动作</li><li>recovery failure：失败后不会重试</li></ul><p>这些失败对应不同改进方向。detectionfailure可能要改视觉；slip可能要改夹爪控制或触觉反馈；timeout可能是policy不确定性太高。</p><p>分类失败模式的价值是让下一步迭代有方向，而不是盲目加数据。</p><h2 id="robustness-vs-generalization">robustness vs generalization</h2><p>robustness和generalization有点像，但不完全一样。</p><p>robustness更像是在同一任务附近抗扰动：杯子移动一点、光线变暗一点、相机抖一点。</p><p>generalization则是跨任务或跨对象：从红色杯子泛化到透明杯子，从方块堆叠泛化到餐具摆放。</p><p>一个策略可以很robust但不generalize。比如它在一种杯子上非常稳，但换一个形状就不行。</p><p>评估时最好明确自己在测哪一个，不然结果会很含糊。</p><h2 id="online-adaptation">online adaptation</h2><p>真实机器人里，策略不一定要一次成功。它可以观察失败，然后调整。</p><p>比如抓取失败后：</p><ol type="1"><li>重新观察物体位置</li><li>判断是否滑落</li><li>换一个抓取方向</li><li>再试一次</li></ol><p>这种 recovery loop很关键。很多benchmark只看单次attempt，但真实系统更像一个闭环。</p><p>如果策略能从失败中恢复，它的有效成功率会高很多。这里就又回到RL和planning：失败不是episode结束，而是新的状态。</p><h2 id="safety">safety</h2><p>安全评估不能靠平均指标。</p><p>即使99次成功，1次高速撞桌也不能接受。机器人策略里需要特别关注尾部风险：</p><ul><li>最大接触力</li><li>最小距离</li><li>速度/加速度限制</li><li>是否进入不可恢复姿态</li><li>是否可能损坏物体</li></ul><p>这和RL里的expected return不完全一致。expectedreturn可能会掩盖低概率高损失事件。</p><p>因此部署时常常需要额外的 safetylayer，例如动作限幅、碰撞检测、workspace限制、急停机制等。</p><h2 id="evaluation-protocol">evaluation protocol</h2><p>一个比较朴素但可复用的评估记录可以包含：</p><ul><li>task name</li><li>object set</li><li>initial state distribution</li><li>number of trials</li><li>success definition</li><li>intervention definition</li><li>failure categories</li><li>environment variations</li><li>safety constraints</li></ul><p>这些东西写清楚后，结果才可比较。不然一句“成功率90%”其实信息量很小。</p><h2 id="小结">小结</h2><p>具身智能评估可以先记几个问题：</p><ul><li>成功率之外，失败有多严重？</li><li>需要多少人类介入？</li><li>环境扰动后还能不能做？</li><li>失败模式具体是哪类？</li><li>策略能不能恢复？</li><li>有没有低概率高损失风险？</li></ul><p>很多时候，评估不是最后一步，而是下一轮数据收集和模型改进的起点。策略在哪里失败，下一批数据就应该围绕那里补。</p>]]></content>
+      
+      
+      <categories>
+          
+          <category> 具身智能 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> Embodied AI </tag>
+            
+            <tag> Robotics </tag>
+            
+            <tag> Evaluation </tag>
+            
+            <tag> Failure Modes </tag>
+            
+            <tag> Safety </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
       <title>Embodied intelligence notes 3 - diffusion policy and action chunking</title>
       <link href="/2026/05/27/embodied-intelligence-notes-3-diffusion-policy/"/>
       <url>/2026/05/27/embodied-intelligence-notes-3-diffusion-policy/</url>
@@ -355,7 +388,7 @@
       <link href="/2025/02/12/site-notes/"/>
       <url>/2025/02/12/site-notes/</url>
       
-        <content type="html"><![CDATA[<p>这个站点暂时不会被包装成很完整的作品集。它更像一个可以公开翻阅的工作台：读论文时的脉络、做实验时的坑、某个系统概念终于想清楚的一刻，都会先放在这里。</p><p>目前主要会写这些方向：</p><ul><li>强化学习与相关论文笔记</li><li>GPU、MIG、系统隔离与资源调度</li><li>AI 基础设施和工程实践</li><li>一些值得留下来的学习过程</li></ul><p>现在强化学习这条线已经先整理成几篇连续笔记：</p><ul><li>MDP、价值函数、Bellman equation</li><li>动态规划、TD、DQN、策略梯度</li><li>policy gradient、Actor-Critic、PPO</li><li>Offline RL 以及它和机器人数据的关系</li><li>连续控制、DDPG、TD3、SAC</li><li>Model-based RL 和 world model</li><li>Hierarchical RL、skill learning、options</li><li>具身智能中的 VLA、机器人数据和分层策略</li><li>Diffusion policy、action chunking 和动作表示</li></ul><p>如果想按主题顺序读，可以直接看<a href="/notes/">笔记索引</a>。</p><p>后面会继续补具身智能相关内容。这里暂时不追求每篇都像正式教程，更希望保留一点“当时怎么想清楚”的过程。</p>]]></content>
+        <content type="html"><![CDATA[<p>这个站点暂时不会被包装成很完整的作品集。它更像一个可以公开翻阅的工作台：读论文时的脉络、做实验时的坑、某个系统概念终于想清楚的一刻，都会先放在这里。</p><p>目前主要会写这些方向：</p><ul><li>强化学习与相关论文笔记</li><li>GPU、MIG、系统隔离与资源调度</li><li>AI 基础设施和工程实践</li><li>一些值得留下来的学习过程</li></ul><p>现在强化学习这条线已经先整理成几篇连续笔记：</p><ul><li>MDP、价值函数、Bellman equation</li><li>动态规划、TD、DQN、策略梯度</li><li>policy gradient、Actor-Critic、PPO</li><li>Offline RL 以及它和机器人数据的关系</li><li>连续控制、DDPG、TD3、SAC</li><li>Model-based RL 和 world model</li><li>Hierarchical RL、skill learning、options</li><li>具身智能中的 VLA、机器人数据和分层策略</li><li>Diffusion policy、action chunking 和动作表示</li><li>具身策略评估、failure modes 和 safety</li></ul><p>如果想按主题顺序读，可以直接看<a href="/notes/">笔记索引</a>。</p><p>后面会继续补具身智能相关内容。这里暂时不追求每篇都像正式教程，更希望保留一点“当时怎么想清楚”的过程。</p>]]></content>
       
       
       <categories>
