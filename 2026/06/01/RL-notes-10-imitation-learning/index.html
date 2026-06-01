@@ -1,0 +1,275 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="author" content="Wu De"/><meta name="description" content="Wu De 的个人主页，记录强化学习、GPU/系统、AI 基础设施、具身智能和日常学习笔记。"/><meta name="keyword" content="强化学习,GPU,MIG,系统,AI,具身智能,博客"/><meta name="description" content="imitation learning 看起来像 supervised learning，但在机器人里真正难的是分布偏移、纠错数据和示范质量。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="RL notes 10 - imitation learning and behavior cloning">
+<meta property="og:url" content="https://dyrc9.github.io/2026/06/01/RL-notes-10-imitation-learning/index.html">
+<meta property="og:site_name" content="Sine&#39; Website">
+<meta property="og:description" content="imitation learning 看起来像 supervised learning，但在机器人里真正难的是分布偏移、纠错数据和示范质量。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-06-01T06:05:00.000Z">
+<meta property="article:modified_time" content="2026-06-01T06:05:00.000Z">
+<meta property="article:author" content="Wu De">
+<meta property="article:tag" content="RL">
+<meta property="article:tag" content="Robotics">
+<meta property="article:tag" content="Imitation Learning">
+<meta property="article:tag" content="Behavior Cloning">
+<meta property="article:tag" content="Data">
+<meta name="twitter:card" content="summary"><title>RL notes 10 - imitation learning and behavior cloning - Sine' Website - notes, systems, and small experiments</title><link rel="shortcut icon" href="/img/site-icon.png">
+<link rel="stylesheet" href="/css/style.css" id="dm-light">
+
+
+<link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+<meta name="generator" content="Hexo 7.3.0"><style>mjx-container[jax="SVG"] {
+  direction: ltr;
+}
+
+mjx-container[jax="SVG"] > svg {
+  overflow: visible;
+}
+
+mjx-container[jax="SVG"][display="true"] {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+}
+
+mjx-container[jax="SVG"][justify="left"] {
+  text-align: left;
+}
+
+mjx-container[jax="SVG"][justify="right"] {
+  text-align: right;
+}
+
+g[data-mml-node="merror"] > g {
+  fill: red;
+  stroke: red;
+}
+
+g[data-mml-node="merror"] > rect[data-background] {
+  fill: yellow;
+  stroke: none;
+}
+
+g[data-mml-node="mtable"] > line[data-line] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > rect[data-frame] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > .mjx-dashed {
+  stroke-dasharray: 140;
+}
+
+g[data-mml-node="mtable"] > .mjx-dotted {
+  stroke-linecap: round;
+  stroke-dasharray: 0,140;
+}
+
+g[data-mml-node="mtable"] > svg {
+  overflow: visible;
+}
+
+[jax="SVG"] mjx-tool {
+  display: inline-block;
+  position: relative;
+  width: 0;
+  height: 0;
+}
+
+[jax="SVG"] mjx-tool > mjx-tip {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+mjx-tool > mjx-tip {
+  display: inline-block;
+  padding: .2em;
+  border: 1px solid #888;
+  font-size: 70%;
+  background-color: #F8F8F8;
+  color: black;
+  box-shadow: 2px 2px 5px #AAAAAA;
+}
+
+g[data-mml-node="maction"][data-toggle] {
+  cursor: pointer;
+}
+
+mjx-status {
+  display: block;
+  position: fixed;
+  left: 1em;
+  bottom: 1em;
+  min-width: 25%;
+  padding: .2em .4em;
+  border: 1px solid #888;
+  font-size: 90%;
+  background-color: #F8F8F8;
+  color: black;
+}
+
+foreignObject[data-mjx-xml] {
+  font-family: initial;
+  line-height: normal;
+  overflow: visible;
+}
+
+.MathJax path {
+  stroke-width: 3;
+}
+
+mjx-container[display="true"] {
+  overflow: auto hidden;
+}
+
+mjx-container[display="true"] + br {
+  display: none;
+}
+</style></head><body><header><div class="top-nav" ondblclick="scrollToTop()"><div class="nav-info"><div class="nav-icon"><img id="nav-icon" src="/img/site-icon.png"/></div><div class="nav-title"><a id="nav-title" href="/" title="主页">Sine' Website</a></div></div><div class="nav-ribbon"><div class="top-menu-expanded"><a class="top-menu-item" href="/archives"><span>归档</span></a><a class="top-menu-item" href="/categories"><span>分类</span></a><a class="top-menu-item" href="/tags"><span>标签</span></a><a class="top-menu-item" href="/notes"><span>笔记</span></a><a class="top-menu-item" href="/about"><span>关于</span></a></div><div class="top-search" onclick="toggleSearchWindow()"><div id="top-search-btn" title="搜索"><i class="icon fa-solid fa-magnifying-glass"></i><span>搜索</span></div></div><div id="top-menu-btn" onclick="openTopMenu()" title="打开菜单"><i class="fa-solid fa-bars fa-lg"></i></div></div></div></header><div id="top-menu-hidden"><div class="menu-hidden-content"><div class="menu-hidden-nav"><a class="menu-hidden-item" href="/archives"><i class="fa-solid fa-box-archive fa-sm"></i><span>归档</span></a><a class="menu-hidden-item" href="/categories"><i class="fa-regular fa-folder-open fa-sm"></i><span>分类</span></a><a class="menu-hidden-item" href="/tags"><i class="fa-solid fa-tags fa-sm"></i><span>标签</span></a><a class="menu-hidden-item" href="/notes"><i class="fa-solid fa-paw fa-sm"></i><span>笔记</span></a><a class="menu-hidden-item" href="/about"><i class="fa-solid fa-paw fa-sm"></i><span>关于</span></a></div></div><div class="menu-hidden-blank" onclick="closeTopMenu()"></div></div>
+<div class="blog-info"><div class="blog-pic"><img id="blog-pic" src="/img/site-icon.png"/></div><div class="blog-title"><i class="fa-solid fa-paw fa-2xs fa-rotate-by"></i><span>Sine' Website</span><i class="fa-solid fa-paw fa-2xs fa-rotate-by"></i></div><div class="blog-desc">记录强化学习、GPU/系统、AI 基础设施，以及一点具身智能相关的学习笔记。</div></div><div class="main"><div class="main-content"><article class="post"><div class="post-title"><h1><i class="fa-solid fa-paw"></i>RL notes 10 - imitation learning and behavior cloning</h1></div><div class="post-info"><div class="post-info-first-line"><div class="post-date"><i class="icon fa-regular fa-calendar-plus" title="发布日期"></i><time class="publish-time">2026-06-01</time><i class="icon fa-regular fa-calendar-check" title="更新日期"></i><time class="update-time">2026-06-01</time></div>
+<div class="post-categories"><i class="icon fa-regular fa-folder-open" title="分类"></i><a class="post-category" href="/categories/%E5%BC%BA%E5%8C%96%E5%AD%A6%E4%B9%A0/">强化学习</a></div>
+<div class="post-tags"><i class="icon fa-solid fa-tags" title="标签"></i><a class="post-tag" href="/tags/RL/">RL</a><i class="icon fa-solid fa-tags" title="标签"></i><a class="post-tag" href="/tags/Robotics/">Robotics</a><i class="icon fa-solid fa-tags" title="标签"></i><a class="post-tag" href="/tags/Imitation-Learning/">Imitation Learning</a><i class="icon fa-solid fa-tags" title="标签"></i><a class="post-tag" href="/tags/Behavior-Cloning/">Behavior Cloning</a><i class="icon fa-solid fa-tags" title="标签"></i><a class="post-tag" href="/tags/Data/">Data</a></div></div><div class="post-info-second-line"><div class="post-copyright"><i class="icon fa-brands fa-creative-commons" title="版权声明"></i><span>版权声明: </span><a target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-nd/4.0/deed.zh-hans" title="CC BY-NC-ND 4.0">署名-非商业性使用-禁止演绎 4.0</a></div>
+<div class="post-word-count"><i class="icon fa-solid fa-pen-to-square"></i><span>全文约1.4K字</span></div></div></div><div class="post-content"><p>前面写 exploration
+时提到一个现实问题：很多任务靠随机探索拿不到有效数据。</p>
+<p>这时候 imitation learning
+就很自然地出现了。与其让agent从零开始撞，不如先看人类或专家怎么做。尤其是机器人任务，示范数据往往比在线试错更便宜，也更安全。</p>
+<p>但 imitation learning 不是简单把专家动作抄下来。它看起来像 supervised
+learning，落到 sequential decision making 里会多出很多坑。</p>
+<h2 id="behavior-cloning">behavior cloning</h2>
+<p>最直接的方法是 behavior cloning，简称 BC。</p>
+<p>给定专家数据：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">dataset = {(observation, expert_action)}</span><br></pre></td></tr></table></figure>
+<p>训练一个policy去预测专家动作：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">policy(observation) -&gt; action</span><br></pre></td></tr></table></figure>
+<p>如果动作是离散的，可以做分类；如果动作是连续的，可以做回归。</p>
+<p>BC的优点很明显：</p>
+<ul>
+<li>训练稳定</li>
+<li>不需要reward</li>
+<li>不需要和环境交互</li>
+<li>可以直接吃大规模示范数据</li>
+</ul>
+<p>所以很多机器人策略最开始都是BC。先让模型学会“像人一样做”，再考虑RL
+fine-tuning、value selection 或者安全过滤。</p>
+<h2 id="covariate-shift">covariate shift</h2>
+<p>BC最大的问题是 covariate shift。</p>
+<p>训练数据里的状态来自专家。部署时，policy自己执行动作，一旦某一步有小偏差，后面看到的状态就可能不是专家数据里常见的状态。</p>
+<p>比如专家轨迹是：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">靠近杯子 -&gt; 对齐夹爪 -&gt; 闭合 -&gt; 抬起</span><br></pre></td></tr></table></figure>
+<p>BC策略如果在“对齐夹爪”时偏了一点，下一帧可能看到一个半偏不偏的状态。专家数据里没有这种状态，policy就更容易继续偏，最后失败。</p>
+<p>这就是 compounding error：一步小错会滚成一串错。</p>
+<p>所以BC不是学得越像训练集就一定越好。关键还要看它在自己造成的状态分布里能不能回来。</p>
+<h2 id="dagger">DAgger</h2>
+<p>DAgger的思路是让policy参与数据收集。</p>
+<p>粗略流程：</p>
+<ol type="1">
+<li>先用专家数据训练一个初始policy</li>
+<li>让policy在环境里跑，收集它实际访问到的状态</li>
+<li>让专家给这些状态标注应该怎么做</li>
+<li>把新数据加回dataset，重新训练</li>
+</ol>
+<p>这样数据分布会逐渐贴近policy自己的状态分布。</p>
+<p>DAgger的直觉很好：不要只教学生标准答案，也要看学生会错在哪里，然后在那些状态上补课。</p>
+<p>问题是它需要专家反复介入。对仿真任务还好，对真实机器人来说，专家标注成本可能很高。</p>
+<h2 id="demonstration-quality">demonstration quality</h2>
+<p>示范数据不是越多越好，还要看质量。</p>
+<p>几个常见问题：</p>
+<ul>
+<li>专家风格不一致</li>
+<li>遥操作有延迟和抖动</li>
+<li>成功轨迹多，失败恢复少</li>
+<li>只覆盖简单场景</li>
+<li>动作频率和模型控制频率不匹配</li>
+</ul>
+<p>机器人数据里尤其麻烦的是
+teleoperation。人类操作并不是完美最优的，里面有犹豫、修正、停顿，也有因为设备延迟造成的奇怪动作。</p>
+<p>这些东西不一定要全部删掉。有些修正动作反而很有价值，因为它们告诉policy失败后怎么恢复。真正需要小心的是把噪声当成意图。</p>
+<h2 id="multi-modal-action">multi-modal action</h2>
+<p>同一个观测下，专家可能有多种正确做法。</p>
+<p>比如整理桌面时，可以先拿左边的杯子，也可以先拿右边的盘子。两个动作都合理，但如果用MSE回归到平均动作，可能会得到一个什么也没拿的中间动作。</p>
+<p>这也是 diffusion policy、action chunking
+这些方法会出现的原因。BC不是只能输出单个动作均值，它也可以学一个更复杂的动作分布。</p>
+<p>可以把很多现代机器人策略看成 stronger BC：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">observation + instruction -&gt; action distribution / action chunk</span><br></pre></td></tr></table></figure>
+<p>区别在于模型能不能表达动作里的多峰性和时间结构。</p>
+<h2 id="bc-and-rl">BC and RL</h2>
+<p>BC和RL不是对立的。</p>
+<p>一个常见组合是：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">BC pretraining -&gt; RL fine-tuning</span><br></pre></td></tr></table></figure>
+<p>先用示范把policy放到一个还不错的位置，再用reward继续优化。这样比从随机策略开始安全很多，也省很多探索成本。</p>
+<p>另一种组合是保守一点：</p>
+<ul>
+<li>policy由BC生成候选动作</li>
+<li>critic或value model给动作打分</li>
+<li>safety layer过滤危险动作</li>
+<li>planner在多个候选里选一个</li>
+</ul>
+<p>这时BC更像 proposal
+distribution。它提供“人类可能会做的动作”，RL或planner负责选择、修正和约束。</p>
+<h2 id="inverse-rl">inverse RL</h2>
+<p>还有一条相关路线是 inverse reinforcement learning。</p>
+<p>BC直接学动作，IRL想从专家行为里反推出reward：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">expert behavior -&gt; reward function</span><br></pre></td></tr></table></figure>
+<p>然后再用这个reward训练policy。</p>
+<p>这个思路更优雅，因为reward可能比动作更可迁移。但实际做起来也更难：很多不同reward都能解释同一条专家轨迹，问题本身是不适定的。</p>
+<p>在今天的机器人学习里，直接BC、preference learning、reward
+model和offline RL经常混在一起用，不一定非要保持教科书上的边界。</p>
+<h2 id="小结">小结</h2>
+<p>imitation learning 这块可以先记：</p>
+<ul>
+<li>BC把策略学习变成监督学习，简单稳定</li>
+<li>sequential setting里会有covariate shift和compounding error</li>
+<li>DAgger通过收集policy自己访问到的状态来补数据</li>
+<li>示范质量、动作频率、遥操作噪声都很重要</li>
+<li>多峰动作分布需要更强的policy family</li>
+<li>BC常常是机器人RL和VLA策略的起点，而不是终点</li>
+</ul>
+<p>对具身智能来说，imitation learning
+很像一座桥：一边接大规模数据和监督学习，另一边接RL里的闭环、探索、reward和安全约束。</p>
+</div><div class="post-end"><div class="post-prev"></div><div class="post-next"><a href="/2026/06/01/RL-notes-9-exploration/" title="下一篇文章"><i class="fa-solid fa-chevron-right fa-lg"></i></a></div></div></article><div id="post-toc"><aside class="toc-aside"><div class="toc-title"><span><i class="fa-solid fa-paw"></i>目录</span></div><div class="toc-container" id="toc-body"><ol class="toc-content"><li class="toc-content-item toc-content-level-2"><a class="toc-content-link" href="#behavior-cloning"><span class="toc-content-number">1.</span> <span class="toc-content-text">behavior cloning</span></a></li><li class="toc-content-item toc-content-level-2"><a class="toc-content-link" href="#covariate-shift"><span class="toc-content-number">2.</span> <span class="toc-content-text">covariate shift</span></a></li><li class="toc-content-item toc-content-level-2"><a class="toc-content-link" href="#dagger"><span class="toc-content-number">3.</span> <span class="toc-content-text">DAgger</span></a></li><li class="toc-content-item toc-content-level-2"><a class="toc-content-link" href="#demonstration-quality"><span class="toc-content-number">4.</span> <span class="toc-content-text">demonstration quality</span></a></li><li class="toc-content-item toc-content-level-2"><a class="toc-content-link" href="#multi-modal-action"><span class="toc-content-number">5.</span> <span class="toc-content-text">multi-modal action</span></a></li><li class="toc-content-item toc-content-level-2"><a class="toc-content-link" href="#bc-and-rl"><span class="toc-content-number">6.</span> <span class="toc-content-text">BC and RL</span></a></li><li class="toc-content-item toc-content-level-2"><a class="toc-content-link" href="#inverse-rl"><span class="toc-content-number">7.</span> <span class="toc-content-text">inverse RL</span></a></li><li class="toc-content-item toc-content-level-2"><a class="toc-content-link" href="#%E5%B0%8F%E7%BB%93"><span class="toc-content-number">8.</span> <span class="toc-content-text">小结</span></a></li></ol></div></aside><div class="toc-blank" onclick="tocToggle()"></div></div></div></div><div id="tool-bar"><div id="tool-bar-main"><div id="tool-toggle" onclick="toolToggle()" title="设置"><i class="fa-solid fa-gear"></i></div><div id="toc-toggle" onclick="tocToggle()" title="目录"><i class="fa-solid fa-list-ul"></i></div><div id="back-to-top" onclick="scrollToTop()" title="返回顶部"><i class="fa-solid fa-chevron-up"></i></div></div><div id="tool-bar-more" style="display: none;"><div id="darkmode-switch" onclick="darkmodeSwitch()" title="深色模式"><i class="fa-solid fa-circle-half-stroke"></i></div><div id="font-size-increase" onclick="fontSizeIncrease()" title="放大字体"><i class="fa-solid fa-plus"></i></div><div id="font-size-decrease" onclick="fontSizeDecrease()" title="缩小字体"><i class="fa-solid fa-minus"></i></div></div></div><div id="search-panel"><div class="search-container"><div class="search-head"><div class="search-title"><span><i class="fa-solid fa-paw"></i>搜索</span></div><div class="search-close-btn" onclick="toggleSearchWindow()"><i class="fa-regular fa-circle-xmark"></i></div></div><div class="search-box"><i class="fa-solid fa-magnifying-glass"></i><input id="search-input" type="text" placeholder="请输入需要搜索的内容……" value=""/></div><div class="search-body"><div id="search-count">匹配结果数: </div><div id="search-result"></div><div id="search-result-empty">未搜索到匹配的文章。</div></div></div></div><footer><div class="footer-content"><div class="copyright-info"><i class="fa-regular fa-copyright fa-xs"></i><span>2025 - 2026 </span><a href="/about">Wu De</a><i class="fa-solid fa-cat fa-sm"></i><span>Powered by </span><a href="https://hexo.io/" target="_blank">Hexo</a><span> &amp; </span><a href="https://github.com/chanwj/hexo-theme-meow" target="_blank" title="v2.1.2">Theme Meow</a></div></div></footer>
+<script>const GLOBAL_CONFIG = {
+  comment: { theme: ''}
+}
+</script>
+<script src="/js/third-party/darkmode.js"></script>
+<script>var options = {
+  dark: '/css/darkmode.css',
+  startAt: '24:00',
+  endAt: '06:00',
+  checkSystemScheme: 'false',
+  saveOnToggle: 'true'
+};
+var darkMode = new DarkMode(options);
+// change comment theme synchronously 同步修改评论区主题
+if (darkMode.getMode() == "dark" && (false || false)) {
+  if (document.getElementById('comment')) {
+    document.getElementById('comment').getElementsByTagName('script')[0].setAttribute('data-theme', 'noborder_dark');
+  }
+}
+</script><script>if (localStorage.getItem('font-size')) {
+  document.querySelector('.post-content').style.fontSize = localStorage.getItem('font-size') + 'px';
+}
+</script>
+<script src="/js/theme/tool-bar.js"></script>
+
+
+<script src="/js/theme/menu.js"></script>
+
+
+<script src="/js/third-party/clipboard.min.js"></script>
+
+
+<script src="/js/theme/copy.js"></script>
+<script>copyCode();
+</script>
+<script src="/js/jquery-3.7.1.min.js"></script>
+
+
+<script src="/js/theme/search.js"></script>
+<script>searchFunc('/search.xml', 'search-input', 'search-result');
+</script></body></html>

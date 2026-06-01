@@ -4,6 +4,39 @@
   
     
     <entry>
+      <title>RL notes 10 - imitation learning and behavior cloning</title>
+      <link href="/2026/06/01/RL-notes-10-imitation-learning/"/>
+      <url>/2026/06/01/RL-notes-10-imitation-learning/</url>
+      
+        <content type="html"><![CDATA[<p>前面写 exploration时提到一个现实问题：很多任务靠随机探索拿不到有效数据。</p><p>这时候 imitation learning就很自然地出现了。与其让agent从零开始撞，不如先看人类或专家怎么做。尤其是机器人任务，示范数据往往比在线试错更便宜，也更安全。</p><p>但 imitation learning 不是简单把专家动作抄下来。它看起来像 supervisedlearning，落到 sequential decision making 里会多出很多坑。</p><h2 id="behavior-cloning">behavior cloning</h2><p>最直接的方法是 behavior cloning，简称 BC。</p><p>给定专家数据：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">dataset = {(observation, expert_action)}</span><br></pre></td></tr></table></figure><p>训练一个policy去预测专家动作：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">policy(observation) -&gt; action</span><br></pre></td></tr></table></figure><p>如果动作是离散的，可以做分类；如果动作是连续的，可以做回归。</p><p>BC的优点很明显：</p><ul><li>训练稳定</li><li>不需要reward</li><li>不需要和环境交互</li><li>可以直接吃大规模示范数据</li></ul><p>所以很多机器人策略最开始都是BC。先让模型学会“像人一样做”，再考虑RLfine-tuning、value selection 或者安全过滤。</p><h2 id="covariate-shift">covariate shift</h2><p>BC最大的问题是 covariate shift。</p><p>训练数据里的状态来自专家。部署时，policy自己执行动作，一旦某一步有小偏差，后面看到的状态就可能不是专家数据里常见的状态。</p><p>比如专家轨迹是：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">靠近杯子 -&gt; 对齐夹爪 -&gt; 闭合 -&gt; 抬起</span><br></pre></td></tr></table></figure><p>BC策略如果在“对齐夹爪”时偏了一点，下一帧可能看到一个半偏不偏的状态。专家数据里没有这种状态，policy就更容易继续偏，最后失败。</p><p>这就是 compounding error：一步小错会滚成一串错。</p><p>所以BC不是学得越像训练集就一定越好。关键还要看它在自己造成的状态分布里能不能回来。</p><h2 id="dagger">DAgger</h2><p>DAgger的思路是让policy参与数据收集。</p><p>粗略流程：</p><ol type="1"><li>先用专家数据训练一个初始policy</li><li>让policy在环境里跑，收集它实际访问到的状态</li><li>让专家给这些状态标注应该怎么做</li><li>把新数据加回dataset，重新训练</li></ol><p>这样数据分布会逐渐贴近policy自己的状态分布。</p><p>DAgger的直觉很好：不要只教学生标准答案，也要看学生会错在哪里，然后在那些状态上补课。</p><p>问题是它需要专家反复介入。对仿真任务还好，对真实机器人来说，专家标注成本可能很高。</p><h2 id="demonstration-quality">demonstration quality</h2><p>示范数据不是越多越好，还要看质量。</p><p>几个常见问题：</p><ul><li>专家风格不一致</li><li>遥操作有延迟和抖动</li><li>成功轨迹多，失败恢复少</li><li>只覆盖简单场景</li><li>动作频率和模型控制频率不匹配</li></ul><p>机器人数据里尤其麻烦的是teleoperation。人类操作并不是完美最优的，里面有犹豫、修正、停顿，也有因为设备延迟造成的奇怪动作。</p><p>这些东西不一定要全部删掉。有些修正动作反而很有价值，因为它们告诉policy失败后怎么恢复。真正需要小心的是把噪声当成意图。</p><h2 id="multi-modal-action">multi-modal action</h2><p>同一个观测下，专家可能有多种正确做法。</p><p>比如整理桌面时，可以先拿左边的杯子，也可以先拿右边的盘子。两个动作都合理，但如果用MSE回归到平均动作，可能会得到一个什么也没拿的中间动作。</p><p>这也是 diffusion policy、action chunking这些方法会出现的原因。BC不是只能输出单个动作均值，它也可以学一个更复杂的动作分布。</p><p>可以把很多现代机器人策略看成 stronger BC：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">observation + instruction -&gt; action distribution / action chunk</span><br></pre></td></tr></table></figure><p>区别在于模型能不能表达动作里的多峰性和时间结构。</p><h2 id="bc-and-rl">BC and RL</h2><p>BC和RL不是对立的。</p><p>一个常见组合是：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">BC pretraining -&gt; RL fine-tuning</span><br></pre></td></tr></table></figure><p>先用示范把policy放到一个还不错的位置，再用reward继续优化。这样比从随机策略开始安全很多，也省很多探索成本。</p><p>另一种组合是保守一点：</p><ul><li>policy由BC生成候选动作</li><li>critic或value model给动作打分</li><li>safety layer过滤危险动作</li><li>planner在多个候选里选一个</li></ul><p>这时BC更像 proposaldistribution。它提供“人类可能会做的动作”，RL或planner负责选择、修正和约束。</p><h2 id="inverse-rl">inverse RL</h2><p>还有一条相关路线是 inverse reinforcement learning。</p><p>BC直接学动作，IRL想从专家行为里反推出reward：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">expert behavior -&gt; reward function</span><br></pre></td></tr></table></figure><p>然后再用这个reward训练policy。</p><p>这个思路更优雅，因为reward可能比动作更可迁移。但实际做起来也更难：很多不同reward都能解释同一条专家轨迹，问题本身是不适定的。</p><p>在今天的机器人学习里，直接BC、preference learning、rewardmodel和offline RL经常混在一起用，不一定非要保持教科书上的边界。</p><h2 id="小结">小结</h2><p>imitation learning 这块可以先记：</p><ul><li>BC把策略学习变成监督学习，简单稳定</li><li>sequential setting里会有covariate shift和compounding error</li><li>DAgger通过收集policy自己访问到的状态来补数据</li><li>示范质量、动作频率、遥操作噪声都很重要</li><li>多峰动作分布需要更强的policy family</li><li>BC常常是机器人RL和VLA策略的起点，而不是终点</li></ul><p>对具身智能来说，imitation learning很像一座桥：一边接大规模数据和监督学习，另一边接RL里的闭环、探索、reward和安全约束。</p>]]></content>
+      
+      
+      <categories>
+          
+          <category> 强化学习 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> RL </tag>
+            
+            <tag> Robotics </tag>
+            
+            <tag> Imitation Learning </tag>
+            
+            <tag> Behavior Cloning </tag>
+            
+            <tag> Data </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
       <title>RL notes 9 - exploration and uncertainty</title>
       <link href="/2026/06/01/RL-notes-9-exploration/"/>
       <url>/2026/06/01/RL-notes-9-exploration/</url>
@@ -454,7 +487,7 @@
       <link href="/2025/02/12/site-notes/"/>
       <url>/2025/02/12/site-notes/</url>
       
-        <content type="html"><![CDATA[<p>这个站点暂时不会被包装成很完整的作品集。它更像一个可以公开翻阅的工作台：读论文时的脉络、做实验时的坑、某个系统概念终于想清楚的一刻，都会先放在这里。</p><p>目前主要会写这些方向：</p><ul><li>强化学习与相关论文笔记</li><li>GPU、MIG、系统隔离与资源调度</li><li>AI 基础设施和工程实践</li><li>一些值得留下来的学习过程</li></ul><p>现在强化学习这条线已经先整理成几篇连续笔记：</p><ul><li>MDP、价值函数、Bellman equation</li><li>动态规划、TD、DQN、策略梯度</li><li>policy gradient、Actor-Critic、PPO</li><li>Offline RL 以及它和机器人数据的关系</li><li>连续控制、DDPG、TD3、SAC</li><li>Model-based RL 和 world model</li><li>Hierarchical RL、skill learning、options</li><li>Reward modeling、preference learning 和 human feedback</li><li>Exploration、uncertainty、curiosity 和 safe exploration</li><li>具身智能中的 VLA、机器人数据和分层策略</li><li>Diffusion policy、action chunking 和动作表示</li><li>具身策略评估、failure modes 和 safety</li></ul><p>如果想按主题顺序读，可以直接看<a href="/notes/">笔记索引</a>。</p><p>后面会继续补具身智能相关内容。这里暂时不追求每篇都像正式教程，更希望保留一点“当时怎么想清楚”的过程。</p>]]></content>
+        <content type="html"><![CDATA[<p>这个站点暂时不会被包装成很完整的作品集。它更像一个可以公开翻阅的工作台：读论文时的脉络、做实验时的坑、某个系统概念终于想清楚的一刻，都会先放在这里。</p><p>目前主要会写这些方向：</p><ul><li>强化学习与相关论文笔记</li><li>GPU、MIG、系统隔离与资源调度</li><li>AI 基础设施和工程实践</li><li>一些值得留下来的学习过程</li></ul><p>现在强化学习这条线已经先整理成几篇连续笔记：</p><ul><li>MDP、价值函数、Bellman equation</li><li>动态规划、TD、DQN、策略梯度</li><li>policy gradient、Actor-Critic、PPO</li><li>Offline RL 以及它和机器人数据的关系</li><li>连续控制、DDPG、TD3、SAC</li><li>Model-based RL 和 world model</li><li>Hierarchical RL、skill learning、options</li><li>Reward modeling、preference learning 和 human feedback</li><li>Exploration、uncertainty、curiosity 和 safe exploration</li><li>Imitation learning、behavior cloning 和 demonstration data</li><li>具身智能中的 VLA、机器人数据和分层策略</li><li>Diffusion policy、action chunking 和动作表示</li><li>具身策略评估、failure modes 和 safety</li></ul><p>如果想按主题顺序读，可以直接看<a href="/notes/">笔记索引</a>。</p><p>后面会继续补具身智能相关内容。这里暂时不追求每篇都像正式教程，更希望保留一点“当时怎么想清楚”的过程。</p>]]></content>
       
       
       <categories>
