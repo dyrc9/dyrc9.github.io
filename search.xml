@@ -4,6 +4,39 @@
   
     
     <entry>
+      <title>Embodied intelligence notes 5 - sim-to-real and deployment gap</title>
+      <link href="/2026/06/01/embodied-intelligence-notes-5-sim-to-real/"/>
+      <url>/2026/06/01/embodied-intelligence-notes-5-sim-to-real/</url>
+      
+        <content type="html"><![CDATA[<p>第一篇具身智能笔记里简单写过 sim-to-real。这里单独展开一下。</p><p>仿真很诱人：便宜、可并行、可重置、不会真的撞坏东西。很多RL算法如果只能在真实机器人上采样，基本跑不起来。但仿真训练出来的策略，放到真实世界里往往会掉性能。</p><p>这个差距就是 sim-to-real gap。</p><p>它不是一个单独的问题，而是一堆误差叠在一起：视觉、动力学、控制、接触、传感器、甚至数据记录方式都会变。</p><h2 id="why-sim">why sim</h2><p>先说为什么还要用sim。</p><p>真实机器人采数据有几个很硬的限制：</p><ul><li>实验慢，不能无限并行</li><li>失败要人工重置</li><li>随机探索有安全风险</li><li>设备磨损是真成本</li><li>很多极端情况不能随便试</li></ul><p>仿真能把这些成本压低。尤其是强化学习需要大量交互时，sim几乎是默认起点。</p><p>但仿真不是现实的复制品。它更像一个可控的练习场。策略在里面学到的东西能不能迁移，要看它学到的是任务本质，还是仿真的细节。</p><h2 id="domain-randomization">domain randomization</h2><p>domain randomization的直觉是：既然sim不可能完全等于real，那就不要只训练一个sim。</p><p>训练时随机化很多因素：</p><ul><li>光照</li><li>纹理</li><li>相机位置</li><li>物体质量</li><li>摩擦系数</li><li>关节阻尼</li><li>传感器噪声</li><li>控制延迟</li></ul><p>希望真实世界只是这些随机环境中的一个点。策略如果在一大堆变化里都能工作，到了真实世界也许不会太脆。</p><p>这个思路有点反直觉：不是把sim调得更像real，而是让sim故意变得更乱。</p><p>但 randomization也不能乱到没有意义。随机范围太窄，覆盖不到真实差异；太宽，任务本身会变得不稳定，policy可能学不到细节。</p><p>所以真正难的是选哪些参数、怎么设范围。</p><h2 id="system-identification">system identification</h2><p>另一条路是 system identification。</p><p>它的目标更直接：测真实系统，然后把仿真参数调到更接近真实。</p><p>比如让机械臂做一些已知动作，记录真实轨迹，再拟合：</p><ul><li>link mass</li><li>friction</li><li>joint damping</li><li>actuator delay</li><li>contact coefficient</li></ul><p>如果仿真动力学更准，策略迁移会轻松一些。</p><p>但这里也有上限。很多真实接触现象很难精确建模，比如软物体、滑动、碰撞、夹爪和物体之间的微小变形。即使参数拟合得很好，真实世界里还有磨损、温度、标定误差和场景变化。</p><p>所以 system identification 更像减少gap，不是消灭gap。</p><h2 id="visual-gap">visual gap</h2><p>视觉策略特别容易被视觉gap影响。</p><p>仿真图像和真实相机差别很多：</p><ul><li>材质不一样</li><li>阴影不一样</li><li>反光不一样</li><li>相机噪声不一样</li><li>背景杂物不一样</li><li>物体边缘和深度不一样</li></ul><p>如果policy直接吃RGB图像，它可能学到一些仿真里的视觉捷径。比如某个固定纹理、干净背景、过于完美的轮廓。</p><p>缓解方式有几类：</p><ul><li>用更多真实图像做视觉预训练</li><li>做 domain randomization</li><li>用 depth / point cloud 减少纹理依赖</li><li>学更抽象的 object-centric representation</li><li>在真实数据上做少量fine-tuning</li></ul><p>这里没有万能答案。越靠近真实部署，越会发现 perception不是前处理小模块，而是策略鲁棒性的核心。</p><h2 id="contact-is-hard">contact is hard</h2><p>接触动力学是机器人里最麻烦的一块。</p><p>抓取、插入、推拉、开门、拧盖子，都依赖接触。接触一旦发生，系统会变得不光滑：一点点位置误差可能导致完全不同的力和运动。</p><p>比如插 peg：</p><ul><li>角度差一点，会卡住</li><li>力太小，插不进去</li><li>力太大，可能损坏</li><li>摩擦不同，轨迹也不同</li></ul><p>仿真里接触参数通常只是近似。策略如果在仿真里学到很脆的接触技巧，真实世界可能马上失败。</p><p>所以很多真实机器人系统会加低层控制器或力控策略，让高层policy不直接处理每个接触细节。</p><p>粗略结构：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">high-level policy -&gt; target pose / skill -&gt; compliant controller -&gt; robot</span><br></pre></td></tr></table></figure><p>这里的controller不是多余的。它在帮policy吸收一部分sim-to-real误差。</p><h2 id="residual-learning">residual learning</h2><p>一种比较工程化的方式是 residual learning。</p><p>先有一个传统控制器或规划器，再让学习策略输出修正量：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">action = controller_action + learned_residual</span><br></pre></td></tr></table></figure><p>这样策略不用从零学控制。它只需要补偿模型误差、视觉误差或局部接触误差。</p><p>这个想法在sim-to-real里很自然：真实系统和仿真系统不完全一样，那就学一个residual 去修正差异。</p><p>好处是稳定，坏处是上限可能被原控制器限制。它更适合已有控制器能做大部分事情，但还差一点鲁棒性的任务。</p><h2 id="real-world-fine-tuning">real-world fine-tuning</h2><p>最后还是常常要回到真实数据。</p><p>比较现实的流程可能是：</p><ol type="1"><li>在仿真里预训练policy</li><li>用少量真实数据校准视觉和控制</li><li>在安全限制下真实执行</li><li>收集失败轨迹</li><li>用失败数据做fine-tuning或补充示范</li></ol><p>这就和前面的 imitation learning、offline RL、evaluation接上了。真实部署不是一次性把模型放上去，而是一个数据闭环。</p><p>策略在哪里失败，下一批数据就应该补哪里。</p><h2 id="deployment-gap">deployment gap</h2><p>我现在更愿意把 sim-to-real 看成 deployment gap 的一部分。</p><p>即使不用仿真，只用真实数据训练，也会有部署差异：</p><ul><li>训练时桌面干净，部署时桌面杂乱</li><li>训练时物体固定，部署时物体换了材质</li><li>训练时相机稳定，部署时相机轻微偏移</li><li>训练时有人类看着，部署时需要自动恢复失败</li></ul><p>所以问题不只是sim和real之间的gap，而是 train distribution 和deployment distribution 之间的gap。</p><p>仿真只是把这个问题放大了。</p><h2 id="小结">小结</h2><p>sim-to-real 这条线可以先记：</p><ul><li>sim的价值是便宜、可并行、可重置</li><li>gap来自视觉、动力学、接触、控制和传感器</li><li>domain randomization 让策略适应一组可能世界</li><li>system identification 让仿真更接近真实系统</li><li>接触任务尤其难，低层控制器很重要</li><li>residual learning 可以把学习放在修正量上</li><li>真正部署时需要持续收集失败和修复数据分布</li></ul><p>从这个角度看，sim-to-real不是一个单独技巧，而是一套承认现实误差存在的系统设计方式。</p>]]></content>
+      
+      
+      <categories>
+          
+          <category> 具身智能 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> Embodied AI </tag>
+            
+            <tag> Robotics </tag>
+            
+            <tag> Sim2Real </tag>
+            
+            <tag> Data </tag>
+            
+            <tag> Deployment </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
       <title>RL notes 10 - imitation learning and behavior cloning</title>
       <link href="/2026/06/01/RL-notes-10-imitation-learning/"/>
       <url>/2026/06/01/RL-notes-10-imitation-learning/</url>
@@ -487,7 +520,7 @@
       <link href="/2025/02/12/site-notes/"/>
       <url>/2025/02/12/site-notes/</url>
       
-        <content type="html"><![CDATA[<p>这个站点暂时不会被包装成很完整的作品集。它更像一个可以公开翻阅的工作台：读论文时的脉络、做实验时的坑、某个系统概念终于想清楚的一刻，都会先放在这里。</p><p>目前主要会写这些方向：</p><ul><li>强化学习与相关论文笔记</li><li>GPU、MIG、系统隔离与资源调度</li><li>AI 基础设施和工程实践</li><li>一些值得留下来的学习过程</li></ul><p>现在强化学习这条线已经先整理成几篇连续笔记：</p><ul><li>MDP、价值函数、Bellman equation</li><li>动态规划、TD、DQN、策略梯度</li><li>policy gradient、Actor-Critic、PPO</li><li>Offline RL 以及它和机器人数据的关系</li><li>连续控制、DDPG、TD3、SAC</li><li>Model-based RL 和 world model</li><li>Hierarchical RL、skill learning、options</li><li>Reward modeling、preference learning 和 human feedback</li><li>Exploration、uncertainty、curiosity 和 safe exploration</li><li>Imitation learning、behavior cloning 和 demonstration data</li><li>具身智能中的 VLA、机器人数据和分层策略</li><li>Diffusion policy、action chunking 和动作表示</li><li>具身策略评估、failure modes 和 safety</li></ul><p>如果想按主题顺序读，可以直接看<a href="/notes/">笔记索引</a>。</p><p>后面会继续补具身智能相关内容。这里暂时不追求每篇都像正式教程，更希望保留一点“当时怎么想清楚”的过程。</p>]]></content>
+        <content type="html"><![CDATA[<p>这个站点暂时不会被包装成很完整的作品集。它更像一个可以公开翻阅的工作台：读论文时的脉络、做实验时的坑、某个系统概念终于想清楚的一刻，都会先放在这里。</p><p>目前主要会写这些方向：</p><ul><li>强化学习与相关论文笔记</li><li>GPU、MIG、系统隔离与资源调度</li><li>AI 基础设施和工程实践</li><li>一些值得留下来的学习过程</li></ul><p>现在强化学习这条线已经先整理成几篇连续笔记：</p><ul><li>MDP、价值函数、Bellman equation</li><li>动态规划、TD、DQN、策略梯度</li><li>policy gradient、Actor-Critic、PPO</li><li>Offline RL 以及它和机器人数据的关系</li><li>连续控制、DDPG、TD3、SAC</li><li>Model-based RL 和 world model</li><li>Hierarchical RL、skill learning、options</li><li>Reward modeling、preference learning 和 human feedback</li><li>Exploration、uncertainty、curiosity 和 safe exploration</li><li>Imitation learning、behavior cloning 和 demonstration data</li><li>具身智能中的 VLA、机器人数据和分层策略</li><li>Diffusion policy、action chunking 和动作表示</li><li>具身策略评估、failure modes 和 safety</li><li>Sim-to-real、deployment gap 和真实数据闭环</li></ul><p>如果想按主题顺序读，可以直接看<a href="/notes/">笔记索引</a>。</p><p>后面会继续补具身智能相关内容。这里暂时不追求每篇都像正式教程，更希望保留一点“当时怎么想清楚”的过程。</p>]]></content>
       
       
       <categories>
