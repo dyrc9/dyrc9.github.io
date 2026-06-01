@@ -4,6 +4,39 @@
   
     
     <entry>
+      <title>Embodied intelligence notes 6 - robot foundation models and data flywheel</title>
+      <link href="/2026/06/02/embodied-intelligence-notes-6-robot-foundation-models/"/>
+      <url>/2026/06/02/embodied-intelligence-notes-6-robot-foundation-models/</url>
+      
+        <content type="html"><![CDATA[<p>前面写 VLA 时提到过 robot datamixture。这篇把这个问题再往外展开一点：如果想做 robot foundationmodel，真正难的到底是什么？</p><p>直觉上当然是模型要更大、数据要更多。但具身智能里，“更多数据”不是把网页文本继续堆大那么简单。机器人数据带着身体、传感器、控制频率和场景限制，每一条轨迹都很具体。</p><p>所以我现在更愿意先把 robot foundation model看成一个数据系统问题，而不是单纯的模型缩放问题。</p><h2 id="what-is-shared">what is shared</h2><p>不同机器人之间，什么东西可以共享？</p><p>可能共享的部分：</p><ul><li>视觉表征</li><li>语言理解</li><li>物体和空间关系</li><li>任务阶段</li><li>高层skill</li><li>失败和恢复模式</li></ul><p>不太容易共享的部分：</p><ul><li>关节动作</li><li>控制频率</li><li>夹爪形态</li><li>相机标定</li><li>workspace范围</li><li>低层动力学</li></ul><p>这就是 robot foundation model和普通多模态模型的差别。图片和文字比较容易放进同一个token空间，动作却和embodiment绑在一起。</p><p>一个 mobilemanipulator、一个桌面机械臂、一个双臂机器人，它们看到的世界可能相似，但能做的动作并不一样。</p><h2 id="embodiment-information">embodiment information</h2><p>如果把多种机器人数据混在一起，模型需要知道“自己现在是哪种身体”。</p><p>可能的条件信息包括：</p><ul><li>robot type</li><li>camera setup</li><li>end-effector type</li><li>action space definition</li><li>control frequency</li><li>workspace limits</li></ul><p>否则同一个视觉状态下，模型可能学到互相冲突的动作。</p><p>比如同样是“抓杯子”，一个机器人输出末端位姿增量，另一个输出关节速度。如果不告诉模型动作语义，混在一起训练就会变得很奇怪。</p><p>所以 embodiment metadata 不是工程细节，它直接决定数据能不能混。</p><h2 id="action-abstraction">action abstraction</h2><p>为了跨机器人共享，很多系统会把动作抽象到更高层。</p><p>几种常见层次：</p><ul><li>raw joint command</li><li>end-effector delta pose</li><li>waypoint</li><li>object-centric action</li><li>skill token</li><li>language-level subgoal</li></ul><p>越底层，执行精度越高，但跨机器人越难共享。越高层，越容易复用，但需要低层控制器把它落地。</p><p>这和前面的 hierarchical RL 接得上。foundation model不一定要直接输出电机控制量，它也可以输出 skill 或waypoint，让下层系统执行。</p><p>粗略结构可以是：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">VLA / planner -&gt; skill / waypoint -&gt; controller -&gt; robot</span><br></pre></td></tr></table></figure><p>这时模型学的是“该做什么”和“做到哪里”，不是每个电机该怎么动。</p><h2 id="video-only-data">video-only data</h2><p>机器人动作数据很贵，但视频数据相对多。</p><p>video-only data 没有动作标签，不能直接做 behaviorcloning。但它仍然有价值：</p><ul><li>学物体外观</li><li>学任务阶段</li><li>学人类操作顺序</li><li>学场景里的因果线索</li><li>学什么变化算任务进展</li></ul><p>比如看很多“打开抽屉”的视频，模型也许学不到具体关节命令，但能知道手先靠近把手、拉开、抽屉位置发生变化。</p><p>问题是 video-only data 和 robot action 之间有gap。人手和夹爪不一样，人类身体的 affordance 也不一样。所以 videopretraining 更像提供视觉和任务先验，真正动作还要靠机器人数据对齐。</p><h2 id="successful-data-is-not-enough">successful data is notenough</h2><p>只收成功轨迹会让模型看起来很干净，但真实部署里不够。</p><p>成功数据告诉模型怎么做对，但不一定告诉它：</p><ul><li>快失败时怎么修正</li><li>已经偏离轨迹时怎么回来</li><li>哪些动作会造成危险</li><li>哪些场景应该停下来请求帮助</li></ul><p>失败数据很丑，但很有信息量。尤其是带标注的失败，比如collision、slip、wrong object、timeout，可以直接指导下一轮数据收集。</p><p>这和 evaluation那篇的想法一致：评估不是最后的报告，而是下一批数据的入口。</p><h2 id="data-flywheel">data flywheel</h2><p>一个比较理想的闭环可能是：</p><ol type="1"><li>用已有数据训练初始policy</li><li>在受控场景里部署</li><li>记录成功、失败和intervention</li><li>对失败做分类</li><li>补采最缺的场景</li><li>重新训练或微调</li></ol><p>写成系统图就是：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">data -&gt; model -&gt; deployment -&gt; failures -&gt; data</span><br></pre></td></tr></table></figure><p>这就是 dataflywheel。它的关键不只是“多收数据”，而是知道应该收什么数据。</p><p>如果模型总是在透明杯子上失败，就补透明杯子；如果总是在遮挡时失败，就补遮挡；如果总是在抓取后滑落，就补恢复和触觉相关数据。</p><h2 id="benchmark-and-reality">benchmark and reality</h2><p>robot foundation model 很需要 benchmark，但 benchmark也很难代表真实部署。</p><p>benchmark要可重复，所以场景会被限制；真实部署恰好相反，最麻烦的是那些没被限制住的小变化。</p><p>所以我觉得评估最好分两层：</p><ul><li>controlled benchmark：比较算法，保证可复现</li><li>deployment evaluation：看真实场景里的失败和恢复</li></ul><p>前者让研究能交流，后者让系统真的变好。</p><p>只看benchmark分数，很容易把问题简化成“模型又大了一点”。但机器人最后要面对桌面、物体、人、光照、磨损和重置成本，这些都不会因为分数好看就消失。</p><h2 id="小结">小结</h2><p>robot foundation model 这条线可以先记：</p><ul><li>难点不只是scale，而是多机器人数据怎么对齐</li><li>embodiment metadata 很重要，不然动作语义会混</li><li>action abstraction 决定跨机器人共享的程度</li><li>video-only data 能提供任务先验，但不能直接替代动作数据</li><li>失败数据和intervention 对持续改进很关键</li><li>data flywheel 比一次性训练更符合真实机器人系统</li><li>benchmark 要和 deployment evaluation 分开看</li></ul><p>如果说 VLA 是把 vision、language、action 接起来，那 robot foundationmodel更像是把模型、数据、机器人平台和部署反馈接成一个会慢慢变好的系统。</p>]]></content>
+      
+      
+      <categories>
+          
+          <category> 具身智能 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> Embodied AI </tag>
+            
+            <tag> Robotics </tag>
+            
+            <tag> VLA </tag>
+            
+            <tag> Robot Data </tag>
+            
+            <tag> Foundation Model </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
       <title>Embodied intelligence notes 5 - sim-to-real and deployment gap</title>
       <link href="/2026/06/01/embodied-intelligence-notes-5-sim-to-real/"/>
       <url>/2026/06/01/embodied-intelligence-notes-5-sim-to-real/</url>
@@ -520,7 +553,7 @@
       <link href="/2025/02/12/site-notes/"/>
       <url>/2025/02/12/site-notes/</url>
       
-        <content type="html"><![CDATA[<p>这个站点暂时不会被包装成很完整的作品集。它更像一个可以公开翻阅的工作台：读论文时的脉络、做实验时的坑、某个系统概念终于想清楚的一刻，都会先放在这里。</p><p>目前主要会写这些方向：</p><ul><li>强化学习与相关论文笔记</li><li>GPU、MIG、系统隔离与资源调度</li><li>AI 基础设施和工程实践</li><li>一些值得留下来的学习过程</li></ul><p>现在强化学习这条线已经先整理成几篇连续笔记：</p><ul><li>MDP、价值函数、Bellman equation</li><li>动态规划、TD、DQN、策略梯度</li><li>policy gradient、Actor-Critic、PPO</li><li>Offline RL 以及它和机器人数据的关系</li><li>连续控制、DDPG、TD3、SAC</li><li>Model-based RL 和 world model</li><li>Hierarchical RL、skill learning、options</li><li>Reward modeling、preference learning 和 human feedback</li><li>Exploration、uncertainty、curiosity 和 safe exploration</li><li>Imitation learning、behavior cloning 和 demonstration data</li><li>具身智能中的 VLA、机器人数据和分层策略</li><li>Diffusion policy、action chunking 和动作表示</li><li>具身策略评估、failure modes 和 safety</li><li>Sim-to-real、deployment gap 和真实数据闭环</li></ul><p>如果想按主题顺序读，可以直接看<a href="/notes/">笔记索引</a>。</p><p>后面会继续补具身智能相关内容。这里暂时不追求每篇都像正式教程，更希望保留一点“当时怎么想清楚”的过程。</p>]]></content>
+        <content type="html"><![CDATA[<p>这个站点暂时不会被包装成很完整的作品集。它更像一个可以公开翻阅的工作台：读论文时的脉络、做实验时的坑、某个系统概念终于想清楚的一刻，都会先放在这里。</p><p>目前主要会写这些方向：</p><ul><li>强化学习与相关论文笔记</li><li>GPU、MIG、系统隔离与资源调度</li><li>AI 基础设施和工程实践</li><li>一些值得留下来的学习过程</li></ul><p>现在强化学习这条线已经先整理成几篇连续笔记：</p><ul><li>MDP、价值函数、Bellman equation</li><li>动态规划、TD、DQN、策略梯度</li><li>policy gradient、Actor-Critic、PPO</li><li>Offline RL 以及它和机器人数据的关系</li><li>连续控制、DDPG、TD3、SAC</li><li>Model-based RL 和 world model</li><li>Hierarchical RL、skill learning、options</li><li>Reward modeling、preference learning 和 human feedback</li><li>Exploration、uncertainty、curiosity 和 safe exploration</li><li>Imitation learning、behavior cloning 和 demonstration data</li><li>具身智能中的 VLA、机器人数据和分层策略</li><li>Diffusion policy、action chunking 和动作表示</li><li>具身策略评估、failure modes 和 safety</li><li>Sim-to-real、deployment gap 和真实数据闭环</li><li>Robot foundation model、数据混合和 data flywheel</li></ul><p>如果想按主题顺序读，可以直接看<a href="/notes/">笔记索引</a>。</p><p>后面会继续补具身智能相关内容。这里暂时不追求每篇都像正式教程，更希望保留一点“当时怎么想清楚”的过程。</p>]]></content>
       
       
       <categories>
