@@ -4,6 +4,39 @@
   
     
     <entry>
+      <title>RL notes 8 - reward modeling and preference learning</title>
+      <link href="/2026/06/01/RL-notes-8-reward-modeling/"/>
+      <url>/2026/06/01/RL-notes-8-reward-modeling/</url>
+      
+        <content type="html"><![CDATA[<p>前面几篇一直默认环境里有reward。到了机器人和真实交互任务，这个假设经常不成立。</p><p>比如“把桌面收拾干净”“动作自然一点”“不要碰倒杯子”，这些目标很难写成一个简单的标量函数。rewardshaping可以写，但很容易写歪。模型最后优化的是你写出来的reward，不一定是你真正想要的行为。</p><p>所以这里补一下 reward modeling / preference learning。</p><h2 id="reward-is-specification">reward is specification</h2><p>reward不是一个普通超参数，它其实是在指定任务。</p><p>如果reward写成“离目标位置越近越好”，机器人可能学会把物体推近，而不是抓起来再放好。<br>如果reward写成“速度越快越好”，动作可能会变得很猛。<br>如果reward只在成功时给1，探索又会很难。</p><p>所以reward设计有两个问题：</p><ul><li>sparse reward：信号太少，学不动</li><li>misspecified reward：信号有了，但优化方向不等于真实目标</li></ul><p>后者更危险，因为训练曲线可能很好看，但行为不对。</p><h2 id="learn-reward-from-data">learn reward from data</h2><p>一个自然想法是：不要手写reward，而是从数据里学。</p><p>如果有人工标注的轨迹分数，可以训练一个reward model：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">r_phi(s, a) -&gt; score</span><br></pre></td></tr></table></figure><p>然后用这个 learned reward 去训练policy。</p><p>但直接打分仍然很难。人类给一条轨迹打绝对分数并不稳定，不同人尺度不一样，同一个人不同时间也会变。</p><p>相比之下，偏好比较更容易：给两段轨迹，让人选哪段更好。</p><h2 id="preference-learning">preference learning</h2><p>假设有两段轨迹<span class="math inline"><em>τ</em><sub><em>A</em></sub></span>和<span class="math inline"><em>τ</em><sub><em>B</em></sub></span>，人类更喜欢A。rewardmodel希望满足：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">R_phi(tau_A) &gt; R_phi(tau_B)</span><br></pre></td></tr></table></figure><p>轨迹总分可以写成每一步reward求和：</p><p><span class="math display"><em>R</em><sub><em>ϕ</em></sub>(<em>τ</em>) = ∑<sub><em>t</em></sub><em>r</em><sub><em>ϕ</em></sub>(<em>s</em><sub><em>t</em></sub>, <em>a</em><sub><em>t</em></sub>)</span></p><p>常见训练目标是让偏好概率符合人类选择。粗略可以记成：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">P(A better than B) = exp(R_A) / (exp(R_A) + exp(R_B))</span><br></pre></td></tr></table></figure><p>这有点像 Bradley-Terry model。训练时最大化人类偏好选择的概率。</p><p>学好reward model之后，再用RL优化这个reward。</p><h2 id="reward-hacking">reward hacking</h2><p>learned reward也不是万能的。policy会主动找reward model的漏洞。</p><p>如果rewardmodel只在有限数据上训练，它可能在分布外状态给出奇怪高分。policy一旦发现这些区域，就会钻进去。这和offlineRL里的OOD Q值有点像。</p><p>所以常见做法是迭代：</p><ol type="1"><li>用当前reward model训练policy</li><li>收集policy产生的新行为</li><li>让人类继续比较这些行为</li><li>更新reward model</li><li>再训练policy</li></ol><p>这叫 active preference learning的味道。关键是把policy可能利用的漏洞暴露出来，让reward model补上。</p><h2 id="human-feedback-is-expensive">human feedback is expensive</h2><p>人类反馈很贵，尤其是机器人任务。</p><p>语言模型里比较两个回答已经不轻松；机器人里比较两段轨迹还要看视频、理解任务、判断安全。反馈质量还会受视角、回放速度、标注者经验影响。</p><p>所以要尽量提高反馈效率：</p><ul><li>选不确定性高的轨迹对来问</li><li>只在关键失败模式上问</li><li>用规则reward覆盖简单约束</li><li>用human feedback补主观或难写的部分</li></ul><p>不是所有reward都要学。碰撞、速度限制、workspace边界这类硬约束，直接写进系统通常更可靠。</p><h2 id="relation-to-rlhf">relation to RLHF</h2><p>RLHF可以看成这套思路在语言模型里的一个版本：</p><ul><li>收集人类偏好</li><li>训练reward model</li><li>用RL优化policy</li></ul><p>机器人里也可以有类似流程，只是policy输出的是动作，反馈对象是行为轨迹。</p><p>区别在于机器人多了物理世界：</p><ul><li>行为采样更慢</li><li>失败成本更高</li><li>safety constraint更硬</li><li>观察到的轨迹受相机和环境影响</li></ul><p>所以机器人里的humanfeedback往往要和模仿学习、离线数据、仿真、安全层一起使用。</p><h2 id="preference-and-evaluation">preference and evaluation</h2><p>上一篇写evaluation时提到，success rate不够。preferencelearning可以补一些难量化目标：</p><ul><li>动作是否自然</li><li>失败是否可恢复</li><li>路径是否安全</li><li>是否减少对环境的扰动</li><li>是否符合人的意图</li></ul><p>这些目标不一定适合写成规则，但人类能比较两段行为哪一个更好。</p><p>不过要小心：人类偏好也可能不一致。任务定义越模糊，rewardmodel越容易学到标注偏差。</p><h2 id="小结">小结</h2><p>这条线可以先这样记：</p><ul><li>reward是在指定任务，不只是训练信号</li><li>手写reward容易sparse或misspecified</li><li>preference比绝对打分更容易收集</li><li>reward model会被policy利用，需要迭代修正</li><li>hard safety constraints最好不要完全交给learned reward</li><li>在机器人里，human feedback要和BC、offline RL、safetylayer一起看</li></ul><p>越接近真实世界，reward越不像一个已知函数，而更像一个需要被不断澄清的任务描述。</p>]]></content>
+      
+      
+      <categories>
+          
+          <category> 强化学习 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> RL </tag>
+            
+            <tag> Robotics </tag>
+            
+            <tag> Reward Modeling </tag>
+            
+            <tag> Preference Learning </tag>
+            
+            <tag> Human Feedback </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
       <title>Embodied intelligence notes 4 - evaluation and failure modes</title>
       <link href="/2026/05/27/embodied-intelligence-notes-4-evaluation/"/>
       <url>/2026/05/27/embodied-intelligence-notes-4-evaluation/</url>
@@ -388,7 +421,7 @@
       <link href="/2025/02/12/site-notes/"/>
       <url>/2025/02/12/site-notes/</url>
       
-        <content type="html"><![CDATA[<p>这个站点暂时不会被包装成很完整的作品集。它更像一个可以公开翻阅的工作台：读论文时的脉络、做实验时的坑、某个系统概念终于想清楚的一刻，都会先放在这里。</p><p>目前主要会写这些方向：</p><ul><li>强化学习与相关论文笔记</li><li>GPU、MIG、系统隔离与资源调度</li><li>AI 基础设施和工程实践</li><li>一些值得留下来的学习过程</li></ul><p>现在强化学习这条线已经先整理成几篇连续笔记：</p><ul><li>MDP、价值函数、Bellman equation</li><li>动态规划、TD、DQN、策略梯度</li><li>policy gradient、Actor-Critic、PPO</li><li>Offline RL 以及它和机器人数据的关系</li><li>连续控制、DDPG、TD3、SAC</li><li>Model-based RL 和 world model</li><li>Hierarchical RL、skill learning、options</li><li>具身智能中的 VLA、机器人数据和分层策略</li><li>Diffusion policy、action chunking 和动作表示</li><li>具身策略评估、failure modes 和 safety</li></ul><p>如果想按主题顺序读，可以直接看<a href="/notes/">笔记索引</a>。</p><p>后面会继续补具身智能相关内容。这里暂时不追求每篇都像正式教程，更希望保留一点“当时怎么想清楚”的过程。</p>]]></content>
+        <content type="html"><![CDATA[<p>这个站点暂时不会被包装成很完整的作品集。它更像一个可以公开翻阅的工作台：读论文时的脉络、做实验时的坑、某个系统概念终于想清楚的一刻，都会先放在这里。</p><p>目前主要会写这些方向：</p><ul><li>强化学习与相关论文笔记</li><li>GPU、MIG、系统隔离与资源调度</li><li>AI 基础设施和工程实践</li><li>一些值得留下来的学习过程</li></ul><p>现在强化学习这条线已经先整理成几篇连续笔记：</p><ul><li>MDP、价值函数、Bellman equation</li><li>动态规划、TD、DQN、策略梯度</li><li>policy gradient、Actor-Critic、PPO</li><li>Offline RL 以及它和机器人数据的关系</li><li>连续控制、DDPG、TD3、SAC</li><li>Model-based RL 和 world model</li><li>Hierarchical RL、skill learning、options</li><li>Reward modeling、preference learning 和 human feedback</li><li>具身智能中的 VLA、机器人数据和分层策略</li><li>Diffusion policy、action chunking 和动作表示</li><li>具身策略评估、failure modes 和 safety</li></ul><p>如果想按主题顺序读，可以直接看<a href="/notes/">笔记索引</a>。</p><p>后面会继续补具身智能相关内容。这里暂时不追求每篇都像正式教程，更希望保留一点“当时怎么想清楚”的过程。</p>]]></content>
       
       
       <categories>
