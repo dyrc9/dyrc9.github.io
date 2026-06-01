@@ -4,6 +4,39 @@
   
     
     <entry>
+      <title>RL notes 9 - exploration and uncertainty</title>
+      <link href="/2026/06/01/RL-notes-9-exploration/"/>
+      <url>/2026/06/01/RL-notes-9-exploration/</url>
+      
+        <content type="html"><![CDATA[<p>前面写了很多算法，但有一个问题一直藏在后面：数据从哪里来？</p><p>强化学习不是只在已有数据上拟合函数，它还要自己决定去哪里采样。这个决定就是exploration。探索做不好，后面的价值估计、策略梯度、reward modeling都会缺数据。</p><p>最简单的探索是随机。但真实任务里，随机不一定有效，甚至很危险。</p><h2 id="epsilon-greedy">epsilon-greedy</h2><p>表格Q-learning里最常见的是 epsilon-greedy：</p><ul><li>大部分时间选当前最优动作</li><li>小概率随机选动作</li></ul><p>它的好处是简单。缺点也明显：随机动作没有方向。</p><p>在小的离散环境里，随机试一试可以覆盖状态；在连续控制或机器人里，随机动作大概率只是让机械臂抖一下，或者直接碰到东西。</p><p>所以epsilon-greedy更像是入门工具，不是通用答案。</p><h2 id="exploration-vs-exploitation">exploration vs exploitation</h2><p>探索和利用的矛盾可以这么理解：</p><ul><li>exploitation：用当前已知最好的动作拿reward</li><li>exploration：牺牲当前reward，去获得未来可能有用的信息</li></ul><p>如果一直exploit，可能卡在局部最优；如果一直explore，学不到稳定策略。</p><p>多臂老虎机里的UCB就把这件事写得比较清楚：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">score = estimated_value + uncertainty_bonus</span><br></pre></td></tr></table></figure><p>即一个动作估计价值高，或者不确定性高，都值得试。</p><p>这个思路比纯随机更聪明：不是所有未知都一样，应该优先探索可能有价值的不确定区域。</p><h2 id="uncertainty">uncertainty</h2><p>RL里的不确定性大概有两种：</p><ul><li>aleatoric uncertainty：环境本身随机，比如同一动作可能有不同结果</li><li>epistemic uncertainty：模型不知道，因为数据不够</li></ul><p>探索主要关心第二种。数据多了，epistemic uncertainty应该下降。</p><p>如果一个状态动作对模型很不确定，就说明那里数据少。给它一个bonus，可以鼓励策略去补数据。</p><p>常见近似方法：</p><ul><li>ensemble：训练多个模型，看它们分歧多大</li><li>Bayesian approximation：让模型输出不确定性</li><li>count-based bonus：访问次数少的状态给奖励</li><li>prediction error：模型预测不准的地方给奖励</li></ul><p>这些方法本质上都在问：哪里是我还不了解的？</p><h2 id="count-based-exploration">count-based exploration</h2><p>在离散状态里，可以直接数访问次数：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">bonus(s) = 1 / sqrt(N(s))</span><br></pre></td></tr></table></figure><p>访问少，bonus大；访问多，bonus小。</p><p>连续状态就不能直接数了，因为几乎每个状态都不一样。可以用hash、densitymodel或者latent representation，把相似状态聚在一起。</p><p>但这也引出一个问题：什么叫相似状态？像素上相似不一定任务上相似，任务上相似也不一定视觉上相似。</p><h2 id="curiosity">curiosity</h2><p>Curiosity-driven exploration通常用预测误差当内在奖励。比如训练一个模型预测下一个状态，如果预测错了，说明这个转移新奇，就给bonus。</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">intrinsic_reward = prediction_error</span><br></pre></td></tr></table></figure><p>它的直觉很好：智能体会主动去看自己解释不了的东西。</p><p>但它也会被噪声吸引。比如电视雪花屏、随机闪烁物体，预测误差永远很高，智能体可能一直盯着它看。</p><p>所以curiosity需要区分“可学习的新东西”和“纯随机噪声”。前者值得探索，后者不值得。</p><h2 id="sparse-reward">sparse reward</h2><p>探索在 sparse reward 任务里尤其重要。</p><p>比如机器人插钥匙，只有插进去才给reward。随机探索几乎碰不到成功轨迹。此时可以考虑：</p><ul><li>demonstration：先给一些示范</li><li>curriculum：从简单任务逐步加难</li><li>hindsight relabeling：失败轨迹也换个目标来学</li><li>subgoal / skill：先学局部可达目标</li></ul><p>这也是为什么具身任务里纯RL经常不好用。不是算法不会优化，而是根本拿不到有效正样本。</p><h2 id="safe-exploration">safe exploration</h2><p>真实机器人探索还有安全问题。探索不是“随便试”，因为动作会进入物理世界。</p><p>需要限制：</p><ul><li>workspace boundary</li><li>speed and acceleration</li><li>collision</li><li>force / torque</li><li>human proximity</li></ul><p>所以真实系统里常见结构是：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">policy action -&gt; safety filter -&gt; robot</span><br></pre></td></tr></table></figure><p>策略可以提议动作，但安全层负责裁掉危险动作。</p><p>这会让RL问题变复杂，因为执行动作不一定等于policy输出动作。但从工程角度看，这是必须的。</p><h2 id="exploration-in-offline-rl">exploration in offline RL</h2><p>OfflineRL表面上没有探索，因为数据集固定。但探索问题其实提前发生了：数据集是谁收集的？覆盖了哪些状态？</p><p>如果数据集没有覆盖某类失败恢复，offline policy就很难学会恢复。<br>如果数据集只包含成功轨迹，policy可能不知道偏离轨迹后怎么办。<br>如果数据集没有危险行为，模型也可能不知道危险边界在哪里。</p><p>所以offline RL的数据质量，本质上也包含探索质量。</p><h2 id="小结">小结</h2><p>探索这条线可以先记：</p><ul><li>epsilon-greedy简单但不聪明</li><li>好的探索应该考虑uncertainty</li><li>count-based和curiosity都是给未知区域bonus</li><li>sparse reward需要示范、课程或子目标</li><li>真实机器人必须做safe exploration</li><li>offline RL把探索问题提前到了数据收集阶段</li></ul><p>RL里很多失败不是更新公式错了，而是数据根本没到过应该学习的地方。</p>]]></content>
+      
+      
+      <categories>
+          
+          <category> 强化学习 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> RL </tag>
+            
+            <tag> Robotics </tag>
+            
+            <tag> Exploration </tag>
+            
+            <tag> Uncertainty </tag>
+            
+            <tag> Curiosity </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
       <title>RL notes 8 - reward modeling and preference learning</title>
       <link href="/2026/06/01/RL-notes-8-reward-modeling/"/>
       <url>/2026/06/01/RL-notes-8-reward-modeling/</url>
@@ -421,7 +454,7 @@
       <link href="/2025/02/12/site-notes/"/>
       <url>/2025/02/12/site-notes/</url>
       
-        <content type="html"><![CDATA[<p>这个站点暂时不会被包装成很完整的作品集。它更像一个可以公开翻阅的工作台：读论文时的脉络、做实验时的坑、某个系统概念终于想清楚的一刻，都会先放在这里。</p><p>目前主要会写这些方向：</p><ul><li>强化学习与相关论文笔记</li><li>GPU、MIG、系统隔离与资源调度</li><li>AI 基础设施和工程实践</li><li>一些值得留下来的学习过程</li></ul><p>现在强化学习这条线已经先整理成几篇连续笔记：</p><ul><li>MDP、价值函数、Bellman equation</li><li>动态规划、TD、DQN、策略梯度</li><li>policy gradient、Actor-Critic、PPO</li><li>Offline RL 以及它和机器人数据的关系</li><li>连续控制、DDPG、TD3、SAC</li><li>Model-based RL 和 world model</li><li>Hierarchical RL、skill learning、options</li><li>Reward modeling、preference learning 和 human feedback</li><li>具身智能中的 VLA、机器人数据和分层策略</li><li>Diffusion policy、action chunking 和动作表示</li><li>具身策略评估、failure modes 和 safety</li></ul><p>如果想按主题顺序读，可以直接看<a href="/notes/">笔记索引</a>。</p><p>后面会继续补具身智能相关内容。这里暂时不追求每篇都像正式教程，更希望保留一点“当时怎么想清楚”的过程。</p>]]></content>
+        <content type="html"><![CDATA[<p>这个站点暂时不会被包装成很完整的作品集。它更像一个可以公开翻阅的工作台：读论文时的脉络、做实验时的坑、某个系统概念终于想清楚的一刻，都会先放在这里。</p><p>目前主要会写这些方向：</p><ul><li>强化学习与相关论文笔记</li><li>GPU、MIG、系统隔离与资源调度</li><li>AI 基础设施和工程实践</li><li>一些值得留下来的学习过程</li></ul><p>现在强化学习这条线已经先整理成几篇连续笔记：</p><ul><li>MDP、价值函数、Bellman equation</li><li>动态规划、TD、DQN、策略梯度</li><li>policy gradient、Actor-Critic、PPO</li><li>Offline RL 以及它和机器人数据的关系</li><li>连续控制、DDPG、TD3、SAC</li><li>Model-based RL 和 world model</li><li>Hierarchical RL、skill learning、options</li><li>Reward modeling、preference learning 和 human feedback</li><li>Exploration、uncertainty、curiosity 和 safe exploration</li><li>具身智能中的 VLA、机器人数据和分层策略</li><li>Diffusion policy、action chunking 和动作表示</li><li>具身策略评估、failure modes 和 safety</li></ul><p>如果想按主题顺序读，可以直接看<a href="/notes/">笔记索引</a>。</p><p>后面会继续补具身智能相关内容。这里暂时不追求每篇都像正式教程，更希望保留一点“当时怎么想清楚”的过程。</p>]]></content>
       
       
       <categories>
