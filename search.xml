@@ -4,6 +4,39 @@
   
     
     <entry>
+      <title>Embodied intelligence notes 7 - world models for embodied agents</title>
+      <link href="/2026/06/04/embodied-intelligence-notes-7-world-models/"/>
+      <url>/2026/06/04/embodied-intelligence-notes-7-world-models/</url>
+      
+        <content type="html"><![CDATA[<p>前面 RL 笔记里写过 model-based RL 和 worldmodel。放到具身智能里，这个话题会变得更具体一点。</p><p>机器人不是在一个干净模拟器里选动作。它看到的是部分观测，动作会进入物理世界，失败有成本。所以如果模型能在内部先想一想“做这个动作会怎样”，就很有价值。</p><p>但这里的 world model也不能理解得太浪漫。它不一定要完整复刻世界，更现实的目标是：预测和任务相关的变化，帮助策略少犯一些贵的错。</p><h2 id="model-what">model what</h2><p>world model 到底要建模什么？</p><p>可能有几种层次：</p><ul><li>pixel-level next frame</li><li>latent state transition</li><li>object pose change</li><li>contact outcome</li><li>task progress</li><li>failure probability</li><li>affordance</li></ul><p>预测下一帧图像看起来最直观，但不一定最有用。机器人关心的可能不是每个像素，而是杯子有没有被抓住、抽屉有没有打开、物体会不会滑落。</p><p>所以更实用的 world model 往往会落在 latent state 或 object-centricstate 上：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">z_{t+1} = f(z_t, a_t)</span><br></pre></td></tr></table></figure><p>这里的 <code>z</code>不一定是人工标注状态，也可以是视觉模型学出来的表示。关键是它要保留和行动有关的信息。</p><h2 id="planning-in-latent-space">planning in latent space</h2><p>有了 dynamics model，就可以在内部 rollout：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">current state -&gt; try action sequence -&gt; predicted future -&gt; score</span><br></pre></td></tr></table></figure><p>这有点像MPC。每次从当前观测出发，试几组候选动作，选一个预测结果最好的，然后只执行前几步，再重新观察。</p><p>对机器人来说，这个结构很自然：</p><ul><li>真实执行贵</li><li>预测执行便宜</li><li>环境会变化，所以要不断重新规划</li></ul><p>但 latent planning 的难点也很明显：如果模型预测错了，planner可能会利用模型漏洞，选出真实世界里不可行的动作。</p><p>这和 RL 里的 model exploitation 是同一个问题。模型不是环境，planner太相信模型会出事。</p><h2 id="action-proposals">action proposals</h2><p>world model 不一定单独生成动作。更常见的方式是和 policy 一起用。</p><p>比如：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">policy proposes action chunks</span><br><span class="line">world model predicts outcomes</span><br><span class="line">value / reward model scores them</span><br><span class="line">controller executes selected chunk</span><br></pre></td></tr></table></figure><p>这样 policy 负责提出看起来像人类会做的动作，world model负责检查后果。</p><p>这和 diffusion policy 也能接上。扩散模型可以采样多条 actionchunk，world model 或 critic 在里面挑更稳的一条。</p><p>在这个意义上，world model 更像一个想象和筛选模块，而不是直接替代policy。</p><h2 id="counterfactual">counterfactual</h2><p>world model 很有用的一点是做 counterfactual。</p><p>真实机器人不能随便试：</p><ul><li>如果从左边抓会怎样？</li><li>如果先推一下再抓会怎样？</li><li>如果夹爪闭合慢一点会怎样？</li><li>如果失败后换一个角度能不能恢复？</li></ul><p>这些问题如果全部在真实世界里试，成本很高。world model可以先给一个粗略答案。</p><p>当然，这个答案不一定准。尤其是接触丰富的任务，预测会很难。但哪怕模型只能排除明显不好的动作，也有用。</p><h2 id="temporal-abstraction">temporal abstraction</h2><p>长程任务里，预测每一帧会很累，也容易误差累积。</p><p>所以 world model 也可以建在 skill 层：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">state + skill -&gt; next abstract state</span><br></pre></td></tr></table></figure><p>比如：</p><ul><li><code>grasp cup</code> 之后，杯子应该在夹爪里</li><li><code>open drawer</code> 之后，抽屉状态应该变成 open</li><li><code>place object</code> 之后，目标位置应该有物体</li></ul><p>这种抽象预测更适合规划长任务。它不关心每个关节怎么动，只关心 skill执行后的世界状态。</p><p>这和 hierarchical RL 的 option model 有点像。option不只是一个动作宏，也可以有自己的 transition model。</p><h2 id="uncertainty-matters">uncertainty matters</h2><p>world model不能只输出一个确定预测。机器人里不知道就是不知道，这件事最好显式表示出来。</p><p>比如模型可以告诉 planner：</p><ul><li>这个动作结果很确定</li><li>这个动作可能成功也可能失败</li><li>这个状态训练数据里很少见</li><li>这个接触结果我预测不了</li></ul><p>uncertainty 可以用来做两件事：</p><ul><li>避免高风险动作</li><li>指导下一批数据收集</li></ul><p>如果模型在某类状态下总是不确定，那就是数据缺口。这里又接回 dataflywheel：world model 的不确定性可以告诉我们应该去哪里补数据。</p><h2 id="sim-and-real">sim and real</h2><p>world model 和 sim-to-real 之间也有关系。</p><p>传统 simulator 是一种手写 world model。学习到的 world model则更像从数据里拟合出来的 simulator。</p><p>两者可以混用：</p><ul><li>simulator 给大体物理结构</li><li>learned model 补偿真实误差</li><li>real data 校准视觉和接触</li></ul><p>这和 residual learning的思路很像。真实世界很难完全建模，那就承认误差存在，然后让数据去补。</p><h2 id="小结">小结</h2><p>具身智能里的 world model 可以先记：</p><ul><li>不一定要预测完整图像，更重要的是预测任务相关变化</li><li>latent planning 可以减少真实试错，但会有 model exploitation</li><li>policy 可以提出动作，world model 负责想象后果和筛选</li><li>counterfactual 对高成本真实实验很有价值</li><li>skill-level world model 更适合长程任务</li><li>uncertainty 既能避险，也能指导数据收集</li><li>simulator 和 learned model 可以互补</li></ul><p>如果说 policy 是“我现在想怎么动”，world model更像“我先想一下这样动之后会发生什么”。在真实机器人里，这个“先想一下”往往能省掉很多昂贵的试错。</p>]]></content>
+      
+      
+      <categories>
+          
+          <category> 具身智能 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> World Model </tag>
+            
+            <tag> Planning </tag>
+            
+            <tag> Embodied AI </tag>
+            
+            <tag> Robotics </tag>
+            
+            <tag> Model-based RL </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
       <title>Embodied intelligence notes 6 - robot foundation models and data flywheel</title>
       <link href="/2026/06/02/embodied-intelligence-notes-6-robot-foundation-models/"/>
       <url>/2026/06/02/embodied-intelligence-notes-6-robot-foundation-models/</url>
@@ -553,7 +586,7 @@
       <link href="/2025/02/12/site-notes/"/>
       <url>/2025/02/12/site-notes/</url>
       
-        <content type="html"><![CDATA[<p>这个站点暂时不会被包装成很完整的作品集。它更像一个可以公开翻阅的工作台：读论文时的脉络、做实验时的坑、某个系统概念终于想清楚的一刻，都会先放在这里。</p><p>目前主要会写这些方向：</p><ul><li>强化学习与相关论文笔记</li><li>GPU、MIG、系统隔离与资源调度</li><li>AI 基础设施和工程实践</li><li>一些值得留下来的学习过程</li></ul><p>现在强化学习这条线已经先整理成几篇连续笔记：</p><ul><li>MDP、价值函数、Bellman equation</li><li>动态规划、TD、DQN、策略梯度</li><li>policy gradient、Actor-Critic、PPO</li><li>Offline RL 以及它和机器人数据的关系</li><li>连续控制、DDPG、TD3、SAC</li><li>Model-based RL 和 world model</li><li>Hierarchical RL、skill learning、options</li><li>Reward modeling、preference learning 和 human feedback</li><li>Exploration、uncertainty、curiosity 和 safe exploration</li><li>Imitation learning、behavior cloning 和 demonstration data</li><li>具身智能中的 VLA、机器人数据和分层策略</li><li>Diffusion policy、action chunking 和动作表示</li><li>具身策略评估、failure modes 和 safety</li><li>Sim-to-real、deployment gap 和真实数据闭环</li><li>Robot foundation model、数据混合和 data flywheel</li></ul><p>如果想按主题顺序读，可以直接看<a href="/notes/">笔记索引</a>。</p><p>后面会继续补具身智能相关内容。这里暂时不追求每篇都像正式教程，更希望保留一点“当时怎么想清楚”的过程。</p>]]></content>
+        <content type="html"><![CDATA[<p>这个站点暂时不会被包装成很完整的作品集。它更像一个可以公开翻阅的工作台：读论文时的脉络、做实验时的坑、某个系统概念终于想清楚的一刻，都会先放在这里。</p><p>目前主要会写这些方向：</p><ul><li>强化学习与相关论文笔记</li><li>GPU、MIG、系统隔离与资源调度</li><li>AI 基础设施和工程实践</li><li>一些值得留下来的学习过程</li></ul><p>现在强化学习这条线已经先整理成几篇连续笔记：</p><ul><li>MDP、价值函数、Bellman equation</li><li>动态规划、TD、DQN、策略梯度</li><li>policy gradient、Actor-Critic、PPO</li><li>Offline RL 以及它和机器人数据的关系</li><li>连续控制、DDPG、TD3、SAC</li><li>Model-based RL 和 world model</li><li>Hierarchical RL、skill learning、options</li><li>Reward modeling、preference learning 和 human feedback</li><li>Exploration、uncertainty、curiosity 和 safe exploration</li><li>Imitation learning、behavior cloning 和 demonstration data</li><li>具身智能中的 VLA、机器人数据和分层策略</li><li>Diffusion policy、action chunking 和动作表示</li><li>具身策略评估、failure modes 和 safety</li><li>Sim-to-real、deployment gap 和真实数据闭环</li><li>Robot foundation model、数据混合和 data flywheel</li><li>World model、latent planning 和具身智能里的反事实试错</li></ul><p>如果想按主题顺序读，可以直接看<a href="/notes/">笔记索引</a>。</p><p>后面会继续补具身智能相关内容。这里暂时不追求每篇都像正式教程，更希望保留一点“当时怎么想清楚”的过程。</p>]]></content>
       
       
       <categories>
