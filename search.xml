@@ -4,6 +4,39 @@
   
     
     <entry>
+      <title>Embodied intelligence notes 8 - memory and long-horizon tasks</title>
+      <link href="/2026/06/07/embodied-intelligence-notes-8-memory-long-horizon/"/>
+      <url>/2026/06/07/embodied-intelligence-notes-8-memory-long-horizon/</url>
+      
+        <content type="html"><![CDATA[<p>前面几篇写了 VLA、diffusion policy、evaluation、sim-to-real、dataflywheel 和 world model。这里补一个经常被低估的问题：memory。</p><p>机器人任务不是每次都只看当前一帧。很多时候，当前图像看不出完整状态，必须记住之前发生过什么。</p><p>比如“把桌上的杯子放进柜子”：</p><ul><li>杯子刚才在哪里？</li><li>现在是不是已经抓住了？</li><li>柜门有没有打开？</li><li>哪个物体已经处理过？</li><li>上一次抓取失败是因为滑落，还是因为没对准？</li></ul><p>这些都不是当前一张图一定能回答的问题。长程任务里，memory不是装饰，而是状态估计的一部分。</p><h2 id="partial-observation">partial observation</h2><p>具身智能里很少真的能看到完整状态。</p><p>相机可能被遮挡，物体可能在抽屉里，夹爪背后发生的接触也不一定能看清。形式上更像POMDP：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">history: o_1, a_1, o_2, a_2, ..., o_t</span><br><span class="line">policy: history -&gt; action</span><br></pre></td></tr></table></figure><p>如果只用当前观测：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">policy(o_t) -&gt; a_t</span><br></pre></td></tr></table></figure><p>那就隐含假设当前观测足够代表状态。短任务里有时勉强可以，长任务里通常不够。</p><p>所以 memory 的第一层作用是 beliefstate：用历史信息估计当前世界到底是什么样。</p><h2 id="task-progress">task progress</h2><p>长程任务里，策略需要知道自己做到哪一步了。</p><p>同样看到一个杯子和一个柜子，动作可能完全不同：</p><ul><li>如果还没抓杯子，下一步是抓</li><li>如果已经抓住杯子，下一步是移动</li><li>如果柜门没开，下一步是先开门</li><li>如果杯子已经放好，下一步是确认或结束</li></ul><p>这就是 taskprogress。它不一定能从当前图像直接看出来，尤其是任务中间状态很相似时。</p><p>可以把高层任务写成一个隐含状态机：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">find object -&gt; grasp -&gt; navigate / move -&gt; place -&gt; verify</span><br></pre></td></tr></table></figure><p>模型不一定显式维护状态机，但它需要有某种等价的进度表示。否则很容易重复做同一件事，比如反复抓已经抓住的物体，或者放完后又继续移动。</p><h2 id="episodic-memory">episodic memory</h2><p>一种比较直观的 memory 是 episodicmemory：记录这一轮任务中发生过的事件。</p><p>可能记录：</p><ul><li>seen objects</li><li>object locations</li><li>completed subgoals</li><li>failed attempts</li><li>human intervention</li><li>environment changes</li></ul><p>比如机器人刚才打开了抽屉，当前画面里抽屉只露出一角。memory可以告诉它：这个抽屉已经开过，不需要再从头找把手。</p><p>episodic memory的价值在于，它保留任务过程，而不是只保留当前视觉特征。</p><h2 id="semantic-memory">semantic memory</h2><p>另一类是 semantic memory，更像长期知识。</p><p>比如：</p><ul><li>杯子通常可以从侧面抓</li><li>抽屉需要先拉把手</li><li>透明物体视觉识别更容易失败</li><li>某个夹爪不适合抓太薄的东西</li></ul><p>这些不是某一次 episode 的临时状态，而是跨任务复用的知识。</p><p>robot foundation model里，这部分可能来自大规模数据预训练；真实部署后，也可能来自长期日志总结。</p><p>一个实际系统可能同时有两种 memory：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">episodic memory: 这次任务发生了什么</span><br><span class="line">semantic memory: 一般世界和机器人能力是什么样</span><br></pre></td></tr></table></figure><h2 id="memory-representation">memory representation</h2><p>memory 可以有很多形式，不一定都是自然语言。</p><p>常见表示：</p><ul><li>recurrent hidden state</li><li>transformer context</li><li>object map</li><li>key-value memory</li><li>scene graph</li><li>task state</li><li>text summary</li></ul><p>不同表示适合不同问题。</p><p>视觉导航可能需要地图；桌面操作可能需要 object-centricmemory；语言交互任务可能需要 text summary；低层控制可能只需要短时间hidden state。</p><p>我现在比较倾向的理解是：不要先问“用不用长上下文”，而要先问“哪些信息需要被保留，保留多久，以什么形式被动作模块使用”。</p><h2 id="memory-and-planning">memory and planning</h2><p>memory 和 planning 是连在一起的。</p><p>planner需要知道已经完成了哪些子目标，哪些尝试失败过，哪些路径不应该再试。</p><p>比如抓取失败后：</p><ol type="1"><li>记录失败类型：slip</li><li>更新物体位置</li><li>换抓取方向</li><li>如果连续失败，切换策略或请求帮助</li></ol><p>没有 memory，策略可能每次都像第一次尝试一样，重复同一个失败动作。</p><p>这也和 evaluation 那篇接上：failure mode不是只写在报告里，它应该进入下一步决策。</p><h2 id="memory-can-be-wrong">memory can be wrong</h2><p>memory 不是越多越好，也不是一定可靠。</p><p>常见问题：</p><ul><li>旧信息过期</li><li>视觉误检被记住</li><li>任务进度判断错</li><li>摘要丢掉关键细节</li><li>长上下文里相关信息找不到</li></ul><p>比如机器人记住“杯子在桌子左侧”，但中途杯子被碰到了右侧。如果 memory不更新，反而会误导策略。</p><p>所以 memory需要更新和校验。一个健康的系统应该允许新观测纠正旧记忆，而不是把历史当成绝对事实。</p><h2 id="relation-to-vla">relation to VLA</h2><p>VLA 如果只看当前图像和语言指令，很容易在长程任务里失去状态。</p><p>更实际的输入可能是：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">current observation</span><br><span class="line">language instruction</span><br><span class="line">task memory</span><br><span class="line">recent action history</span><br></pre></td></tr></table></figure><p>输出也不一定是低层动作，可以是：</p><ul><li>next skill</li><li>waypoint</li><li>question to human</li><li>memory update</li><li>stop / verify</li></ul><p>也就是说，长程 VLA 不只是 action head 问题，还包括 memory update 和task state tracking。</p><h2 id="小结">小结</h2><p>长程具身任务里的 memory 可以先记：</p><ul><li>当前观测往往不足以代表完整状态</li><li>memory 的核心作用是估计状态和记录任务进度</li><li>episodic memory 记录当前 episode 发生过什么</li><li>semantic memory 保存跨任务可复用知识</li><li>memory 表示可以是 hidden state、object map、scene graph或文字摘要</li><li>planning 需要记住失败历史，避免重复试错</li><li>memory 也会错，需要被新观测校验和更新</li></ul><p>如果 world model 是“先想一下会发生什么”，memory更像“别忘了刚才已经发生了什么”。长程机器人任务里，这两件事缺一块都会很难稳。</p>]]></content>
+      
+      
+      <categories>
+          
+          <category> 具身智能 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> Planning </tag>
+            
+            <tag> Embodied AI </tag>
+            
+            <tag> Robotics </tag>
+            
+            <tag> Memory </tag>
+            
+            <tag> Long-horizon Tasks </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
       <title>Embodied intelligence notes 7 - world models for embodied agents</title>
       <link href="/2026/06/04/embodied-intelligence-notes-7-world-models/"/>
       <url>/2026/06/04/embodied-intelligence-notes-7-world-models/</url>
@@ -586,7 +619,7 @@
       <link href="/2025/02/12/site-notes/"/>
       <url>/2025/02/12/site-notes/</url>
       
-        <content type="html"><![CDATA[<p>这个站点暂时不会被包装成很完整的作品集。它更像一个可以公开翻阅的工作台：读论文时的脉络、做实验时的坑、某个系统概念终于想清楚的一刻，都会先放在这里。</p><p>目前主要会写这些方向：</p><ul><li>强化学习与相关论文笔记</li><li>GPU、MIG、系统隔离与资源调度</li><li>AI 基础设施和工程实践</li><li>一些值得留下来的学习过程</li></ul><p>现在强化学习这条线已经先整理成几篇连续笔记：</p><ul><li>MDP、价值函数、Bellman equation</li><li>动态规划、TD、DQN、策略梯度</li><li>policy gradient、Actor-Critic、PPO</li><li>Offline RL 以及它和机器人数据的关系</li><li>连续控制、DDPG、TD3、SAC</li><li>Model-based RL 和 world model</li><li>Hierarchical RL、skill learning、options</li><li>Reward modeling、preference learning 和 human feedback</li><li>Exploration、uncertainty、curiosity 和 safe exploration</li><li>Imitation learning、behavior cloning 和 demonstration data</li><li>具身智能中的 VLA、机器人数据和分层策略</li><li>Diffusion policy、action chunking 和动作表示</li><li>具身策略评估、failure modes 和 safety</li><li>Sim-to-real、deployment gap 和真实数据闭环</li><li>Robot foundation model、数据混合和 data flywheel</li><li>World model、latent planning 和具身智能里的反事实试错</li></ul><p>如果想按主题顺序读，可以直接看<a href="/notes/">笔记索引</a>。</p><p>后面会继续补具身智能相关内容。这里暂时不追求每篇都像正式教程，更希望保留一点“当时怎么想清楚”的过程。</p>]]></content>
+        <content type="html"><![CDATA[<p>这个站点暂时不会被包装成很完整的作品集。它更像一个可以公开翻阅的工作台：读论文时的脉络、做实验时的坑、某个系统概念终于想清楚的一刻，都会先放在这里。</p><p>目前主要会写这些方向：</p><ul><li>强化学习与相关论文笔记</li><li>GPU、MIG、系统隔离与资源调度</li><li>AI 基础设施和工程实践</li><li>一些值得留下来的学习过程</li></ul><p>现在强化学习这条线已经先整理成几篇连续笔记：</p><ul><li>MDP、价值函数、Bellman equation</li><li>动态规划、TD、DQN、策略梯度</li><li>policy gradient、Actor-Critic、PPO</li><li>Offline RL 以及它和机器人数据的关系</li><li>连续控制、DDPG、TD3、SAC</li><li>Model-based RL 和 world model</li><li>Hierarchical RL、skill learning、options</li><li>Reward modeling、preference learning 和 human feedback</li><li>Exploration、uncertainty、curiosity 和 safe exploration</li><li>Imitation learning、behavior cloning 和 demonstration data</li><li>具身智能中的 VLA、机器人数据和分层策略</li><li>Diffusion policy、action chunking 和动作表示</li><li>具身策略评估、failure modes 和 safety</li><li>Sim-to-real、deployment gap 和真实数据闭环</li><li>Robot foundation model、数据混合和 data flywheel</li><li>World model、latent planning 和具身智能里的反事实试错</li><li>Memory、long-horizon tasks 和任务进度跟踪</li></ul><p>如果想按主题顺序读，可以直接看<a href="/notes/">笔记索引</a>。</p><p>后面会继续补具身智能相关内容。这里暂时不追求每篇都像正式教程，更希望保留一点“当时怎么想清楚”的过程。</p>]]></content>
       
       
       <categories>
