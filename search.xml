@@ -4,6 +4,39 @@
   
     
     <entry>
+      <title>Embodied intelligence notes 9 - affordance and object-centric representation</title>
+      <link href="/2026/06/08/embodied-intelligence-notes-9-affordance-object-centric/"/>
+      <url>/2026/06/08/embodied-intelligence-notes-9-affordance-object-centric/</url>
+      
+        <content type="html"><![CDATA[<p>前面写 VLA、world model、memory时一直绕不开一个问题：机器人到底应该怎么看世界？</p><p>普通视觉模型经常回答“这是什么”。但机器人还要回答“它能怎么被操作”。同样是一个杯子，对分类模型来说是cup；对机器人来说，还要知道哪里能抓、杯口在哪里、放下时哪里稳定、会不会滑。</p><p>这就是 affordance 这条线。</p><h2 id="object-name-is-not-enough">object name is not enough</h2><p>知道物体类别不等于知道怎么行动。</p><p>比如识别出“抽屉”之后，还需要知道：</p><ul><li>把手在哪里</li><li>往哪个方向拉</li><li>当前是开还是关</li><li>拉动时会不会撞到别的东西</li><li>需要多大力</li></ul><p>识别出“杯子”之后，也还要知道：</p><ul><li>能不能从侧面抓</li><li>杯子是不是透明</li><li>有没有液体</li><li>杯柄是否可见</li><li>放到哪里不会倒</li></ul><p>所以 perception不能只把图像压成一个语义标签。它需要保留和动作有关的结构。</p><h2 id="affordance">affordance</h2><p>affordance 可以粗略理解成“某个对象或区域支持什么动作”。</p><p>比如：</p><ul><li>handle affords pulling</li><li>flat surface affords placing</li><li>cup side affords grasping</li><li>button affords pressing</li><li>open space affords moving through</li></ul><p>它不是纯视觉属性，也不是纯语言概念，而是物体、机器人身体和任务之间的关系。</p><p>同一个物体，对不同机器人 affordance也可能不同。人手能捏住的薄片，夹爪未必能抓；移动机器人能通过的缝，机械臂未必能伸进去。</p><p>所以 affordance 本质上带着 embodiment。</p><h2 id="object-centric-representation">object-centricrepresentation</h2><p>object-centric representation的目标是把世界组织成对象和关系，而不是一整块像素。</p><p>可以想象成：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">scene = {</span><br><span class="line">  objects: [cup, drawer, plate],</span><br><span class="line">  relations: [cup on table, plate near cup],</span><br><span class="line">  states: [drawer closed, cup upright]</span><br><span class="line">}</span><br></pre></td></tr></table></figure><p>这种表示对长程任务很有用。因为任务通常也是围绕对象说的：</p><ul><li>pick up the cup</li><li>open the drawer</li><li>put the spoon in the bowl</li></ul><p>如果模型内部没有对象结构，就很难稳定跟踪“哪个杯子已经处理过”“抽屉现在是不是开了”。</p><p>当然，object-centric 不一定要手写成 scenegraph。它也可以是模型学出来的 slot、keypoint、region token 或 latentobject embedding。关键是表示里要有可追踪的对象单位。</p><h2 id="keypoints-and-contact">keypoints and contact</h2><p>机器人动作经常和关键点有关。</p><p>抓取不只是抓“杯子”，而是抓某个位置。开门不只是对“门”动作，而是对把手动作。插入任务也常常依赖孔、边缘、轴线这些几何结构。</p><p>所以很多系统会预测：</p><ul><li>grasp point</li><li>handle point</li><li>contact point</li><li>object keypoints</li><li>target pose</li><li>insertion axis</li></ul><p>这些比类别标签更接近控制。</p><p>视觉模型如果能输出稳定 keypoints，后面的 planner 或 controller会轻松很多。反过来，如果视觉只输出一段模糊embedding，低层策略就要自己从里面解出几何关系，难度会高一些。</p><h2 id="relation-to-language">relation to language</h2><p>语言里经常包含对象和关系：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">put the red cup on the plate</span><br></pre></td></tr></table></figure><p>这里至少有：</p><ul><li>target object: red cup</li><li>destination: plate</li><li>relation: on</li></ul><p>VLA 要做 grounding：把语言里的对象和图像里的对象对上。</p><p>如果场景里有两个杯子，一个红色一个蓝色，模型必须知道“redcup”对应哪个视觉区域。之后 memory还要继续跟踪这个对象，不然中途遮挡或移动后会丢目标。</p><p>所以语言 grounding、object-centric perception 和 memory是连在一起的。</p><h2 id="affordance-and-world-model">affordance and world model</h2><p>world model 也需要 affordance。</p><p>如果模型知道“这个把手可以被拉”，它就不必从零预测所有像素变化。它可以在更抽象的层面预测：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">pull(handle) -&gt; drawer state: closed to open</span><br></pre></td></tr></table></figure><p>这比直接预测下一帧图像更接近任务。</p><p>同样，failure prediction 也可以用 affordance：</p><ul><li>抓取点太靠边，可能 slip</li><li>放置面太小，可能 unstable</li><li>夹爪路径被遮挡，可能 collision</li><li>物体太薄，可能 grasp failure</li></ul><p>这些都是 action-conditionedperception。不是只看世界是什么，而是看某个动作在这个世界里会不会成立。</p><h2 id="learning-affordance">learning affordance</h2><p>affordance 可以来自几种数据：</p><ul><li>人工标注的可交互区域</li><li>机器人真实尝试的成功/失败</li><li>人类视频里的接触和操作</li><li>仿真中自动生成的交互结果</li><li>language supervision</li></ul><p>其中最有价值的往往是真实交互数据。因为 affordance最终要被动作验证：看起来能抓，不等于真的能抓。</p><p>这和 RL 的关系也很明显。RL 或 self-supervised interaction可以让机器人主动试，记录哪些动作成功，哪些失败。久而久之，视觉表征会更贴近“能不能做成事”。</p><h2 id="representation-for-control">representation for control</h2><p>最后还是要问：这个表示怎么进入控制？</p><p>几种方式：</p><ul><li>policy 直接吃 object tokens</li><li>planner 在 scene graph 上规划</li><li>affordance map 生成候选动作</li><li>world model 预测 object state change</li><li>controller 追踪 keypoint 或 target pose</li></ul><p>不同系统会选不同接口。端到端模型可以少写很多规则，但也更难debug。显式对象和 affordance表示可解释一些，但需要更好的检测、跟踪和标定。</p><p>这里没有绝对答案。我的感觉是，越接近真实机器人部署，越需要一些可检查的中间表示。至少要知道失败是perception 错了、affordance 判断错了，还是 controller 执行错了。</p><h2 id="小结">小结</h2><p>affordance 和 object-centric representation 可以先记：</p><ul><li>物体类别不等于可操作信息</li><li>affordance 是对象、动作、任务和机器人身体之间的关系</li><li>object-centric representation 有助于长程任务和 memory</li><li>keypoints、contact points、target pose 比类别标签更接近控制</li><li>language grounding 需要把语言对象对到视觉对象</li><li>world model 可以在 affordance 层预测状态变化和失败风险</li><li>真实交互数据对学习 affordance 很重要</li></ul><p>具身智能里的 perception最终不是为了“看懂一张图”，而是为了让动作更可靠。能看见什么、能抓哪里、能不能推、会不会滑，这些才是机器人真正需要的视觉问题。</p>]]></content>
+      
+      
+      <categories>
+          
+          <category> 具身智能 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> Embodied AI </tag>
+            
+            <tag> Robotics </tag>
+            
+            <tag> Affordance </tag>
+            
+            <tag> Representation </tag>
+            
+            <tag> Perception </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
       <title>Embodied intelligence notes 8 - memory and long-horizon tasks</title>
       <link href="/2026/06/07/embodied-intelligence-notes-8-memory-long-horizon/"/>
       <url>/2026/06/07/embodied-intelligence-notes-8-memory-long-horizon/</url>
@@ -619,7 +652,7 @@
       <link href="/2025/02/12/site-notes/"/>
       <url>/2025/02/12/site-notes/</url>
       
-        <content type="html"><![CDATA[<p>这个站点暂时不会被包装成很完整的作品集。它更像一个可以公开翻阅的工作台：读论文时的脉络、做实验时的坑、某个系统概念终于想清楚的一刻，都会先放在这里。</p><p>目前主要会写这些方向：</p><ul><li>强化学习与相关论文笔记</li><li>GPU、MIG、系统隔离与资源调度</li><li>AI 基础设施和工程实践</li><li>一些值得留下来的学习过程</li></ul><p>现在强化学习这条线已经先整理成几篇连续笔记：</p><ul><li>MDP、价值函数、Bellman equation</li><li>动态规划、TD、DQN、策略梯度</li><li>policy gradient、Actor-Critic、PPO</li><li>Offline RL 以及它和机器人数据的关系</li><li>连续控制、DDPG、TD3、SAC</li><li>Model-based RL 和 world model</li><li>Hierarchical RL、skill learning、options</li><li>Reward modeling、preference learning 和 human feedback</li><li>Exploration、uncertainty、curiosity 和 safe exploration</li><li>Imitation learning、behavior cloning 和 demonstration data</li><li>具身智能中的 VLA、机器人数据和分层策略</li><li>Diffusion policy、action chunking 和动作表示</li><li>具身策略评估、failure modes 和 safety</li><li>Sim-to-real、deployment gap 和真实数据闭环</li><li>Robot foundation model、数据混合和 data flywheel</li><li>World model、latent planning 和具身智能里的反事实试错</li><li>Memory、long-horizon tasks 和任务进度跟踪</li></ul><p>如果想按主题顺序读，可以直接看<a href="/notes/">笔记索引</a>。</p><p>后面会继续补具身智能相关内容。这里暂时不追求每篇都像正式教程，更希望保留一点“当时怎么想清楚”的过程。</p>]]></content>
+        <content type="html"><![CDATA[<p>这个站点暂时不会被包装成很完整的作品集。它更像一个可以公开翻阅的工作台：读论文时的脉络、做实验时的坑、某个系统概念终于想清楚的一刻，都会先放在这里。</p><p>目前主要会写这些方向：</p><ul><li>强化学习与相关论文笔记</li><li>GPU、MIG、系统隔离与资源调度</li><li>AI 基础设施和工程实践</li><li>一些值得留下来的学习过程</li></ul><p>现在强化学习这条线已经先整理成几篇连续笔记：</p><ul><li>MDP、价值函数、Bellman equation</li><li>动态规划、TD、DQN、策略梯度</li><li>policy gradient、Actor-Critic、PPO</li><li>Offline RL 以及它和机器人数据的关系</li><li>连续控制、DDPG、TD3、SAC</li><li>Model-based RL 和 world model</li><li>Hierarchical RL、skill learning、options</li><li>Reward modeling、preference learning 和 human feedback</li><li>Exploration、uncertainty、curiosity 和 safe exploration</li><li>Imitation learning、behavior cloning 和 demonstration data</li><li>具身智能中的 VLA、机器人数据和分层策略</li><li>Diffusion policy、action chunking 和动作表示</li><li>具身策略评估、failure modes 和 safety</li><li>Sim-to-real、deployment gap 和真实数据闭环</li><li>Robot foundation model、数据混合和 data flywheel</li><li>World model、latent planning 和具身智能里的反事实试错</li><li>Memory、long-horizon tasks 和任务进度跟踪</li><li>Affordance、object-centric representation 和 action-conditionedperception</li></ul><p>如果想按主题顺序读，可以直接看<a href="/notes/">笔记索引</a>。</p><p>后面会继续补具身智能相关内容。这里暂时不追求每篇都像正式教程，更希望保留一点“当时怎么想清楚”的过程。</p>]]></content>
       
       
       <categories>
