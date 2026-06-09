@@ -4,6 +4,39 @@
   
     
     <entry>
+      <title>Embodied intelligence notes 10 - human-in-the-loop and intervention learning</title>
+      <link href="/2026/06/09/embodied-intelligence-notes-10-human-in-the-loop/"/>
+      <url>/2026/06/09/embodied-intelligence-notes-10-human-in-the-loop/</url>
+      
+        <content type="html"><![CDATA[<p>前面写 reward modeling、imitation learning、evaluation 和 dataflywheel 时都提到过 human feedback。这里把它单独拎出来。</p><p>机器人学习里，人类不只是“先给一批示范数据”的角色。真实系统跑起来之后，人类会在很多地方出现：</p><ul><li>任务开始前给指令</li><li>演示一个动作</li><li>在策略快失败时接管</li><li>标注失败原因</li><li>判断动作是否安全</li><li>给偏好或排序</li><li>在不确定时回答问题</li></ul><p>这些都可以叫human-in-the-loop。它的核心不是让人一直遥控机器人，而是把人的判断放到最有信息量的位置。</p><h2 id="demonstration-is-only-the-start">demonstration is only thestart</h2><p>最常见的人类数据是 demonstration。</p><p>比如 teleoperation：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">human controls robot -&gt; record observation/action trajectory</span><br></pre></td></tr></table></figure><p>这些数据可以直接做 behavior cloning。问题是 demonstration通常覆盖的是“人会怎么成功完成任务”，但不一定覆盖机器人自己会怎么失败。</p><p>一个 BC policy部署后，最缺的往往不是标准成功轨迹，而是偏离轨迹后的恢复数据。</p><p>所以 demonstration 是起点，不是整个闭环。</p><h2 id="intervention">intervention</h2><p>intervention指的是策略执行过程中，人类发现它快出问题了，于是接管或纠正。</p><p>比如：</p><ul><li>夹爪快撞到桌面，人类暂停</li><li>抓取点偏了，人类修正末端位姿</li><li>物体滑落，人类重新摆正</li><li>策略重复尝试同一个失败动作，人类切换子目标</li></ul><p>这些介入很有信息量，因为它们发生在 policy 不会处理的状态附近。</p><p>可以把 intervention看成一种“自动发现难点”的数据收集方式。策略哪里不稳，人类就在哪里出现；这些地方正是下一轮训练最该补的地方。</p><h2 id="learning-from-intervention">learning from intervention</h2><p>intervention 数据可以有几种用法。</p><p>第一种是直接把人类接管后的动作加入数据集：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">bad state -&gt; human corrective action</span><br></pre></td></tr></table></figure><p>这很像 DAgger：让 policy先跑，收集它自己访问到的状态，再让专家告诉它应该怎么做。</p><p>第二种是把 intervention当成负反馈。比如某个状态动作对触发了人类接管，说明这个动作可能不安全或不可靠。</p><p>第三种是学习 intervention predictor：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">predict whether human would intervene</span><br></pre></td></tr></table></figure><p>如果模型预测某个动作大概率需要人类介入，就可以提前降速、换策略，或者请求确认。</p><h2 id="preference-feedback">preference feedback</h2><p>有些任务很难写 reward，但人类可以比较两个结果。</p><p>比如两个整理桌面的轨迹：</p><ul><li>A 更快，但动作有点危险</li><li>B 慢一点，但更稳</li></ul><p>人类可以选择更偏好的轨迹。然后训练 reward model 或 preferencemodel：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">trajectory A vs trajectory B -&gt; preference</span><br></pre></td></tr></table></figure><p>这和 RLHF / preference learning的结构很像，只是机器人里反馈成本更高，而且安全边界更硬。</p><p>偏好反馈适合处理那些不容易写成标量 reward 的东西：</p><ul><li>动作是否自然</li><li>是否太接近碰撞</li><li>路径是否稳</li><li>是否需要太多人工重置</li><li>是否符合任务习惯</li></ul><p>但它也有噪声。不同人对“稳”和“自然”的判断可能不一样，所以协议要尽量清楚。</p><h2 id="active-query">active query</h2><p>人类反馈贵，所以不应该每一步都问。</p><p>更合理的是 active query：只在模型不确定或风险较高时问人。</p><p>比如：</p><ul><li>目标物体有歧义：问用户要哪个杯子</li><li>affordance 不确定：问这个把手能不能拉</li><li>安全风险高：请求确认</li><li>连续失败多次：请求人类演示一次</li></ul><p>这和前面写 uncertainty、memory、world model都能接上。模型需要知道自己什么时候不知道。</p><p>一个简单策略是：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">if uncertainty high or predicted intervention high:</span><br><span class="line">    ask human / slow down / switch safe mode</span><br></pre></td></tr></table></figure><p>这比盲目自信地执行更适合真实机器人。</p><h2 id="labeling-failure">labeling failure</h2><p>失败数据如果只写 failed，价值有限。</p><p>人类可以标注失败类型：</p><ul><li>perception error</li><li>wrong object</li><li>bad grasp point</li><li>collision</li><li>slip</li><li>timeout</li><li>unsafe motion</li><li>task misunderstanding</li></ul><p>这些标签可以直接指导下一步修什么。</p><p>如果主要是 perception error，就补视觉数据；如果是slip，就补抓取和触觉；如果是 task misunderstanding，就检查语言 grounding或 planner。</p><p>这也是为什么 evaluation protocol不只是测试报告。它应该进入数据闭环。</p><h2 id="human-workload">human workload</h2><p>human-in-the-loop 的风险是把系统做成“表面自动，实际全靠人盯着”。</p><p>所以需要记录人类成本：</p><ul><li>intervention count</li><li>intervention duration</li><li>labeling time</li><li>reset time</li><li>number of active queries</li><li>false alarms</li></ul><p>如果一个策略成功率很高，但每次都要人确认三次，那部署价值仍然有限。</p><p>真正希望看到的是：随着数据闭环推进，human workload下降，而不是只是成功率上升。</p><h2 id="safety-boundary">safety boundary</h2><p>在人类介入系统里，安全边界要很清楚。</p><p>有些动作不能等人来救：</p><ul><li>高速撞击</li><li>超出 workspace</li><li>接近人类身体</li><li>夹爪施力过大</li><li>进入不可恢复姿态</li></ul><p>这些应该由 safety layer 或 controller先拦住，而不是只靠人类监督。</p><p>human feedback 适合改进策略，但不能替代底层安全约束。</p><h2 id="小结">小结</h2><p>human-in-the-loop 这条线可以先记：</p><ul><li>demonstration 只是起点，部署后的 intervention更接近真实失败分布</li><li>intervention 数据可以做纠错示范、负反馈或 interventionprediction</li><li>preference feedback 适合表达难写成 reward 的质量判断</li><li>active query 可以把人类反馈用在最有信息量的位置</li><li>failure labeling 能把评估结果变成下一轮数据收集计划</li><li>human workload 本身也应该被评估</li><li>安全边界不能只靠人类接管</li></ul><p>对真实机器人来说，人类不是训练前的一次性数据源，而是系统改进闭环的一部分。好的设计应该让人类越来越少地救场，但每次出现时都能留下有用的数据。</p>]]></content>
+      
+      
+      <categories>
+          
+          <category> 具身智能 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> Embodied AI </tag>
+            
+            <tag> Robotics </tag>
+            
+            <tag> Human Feedback </tag>
+            
+            <tag> Intervention </tag>
+            
+            <tag> Learning from Demonstration </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
       <title>Embodied intelligence notes 9 - affordance and object-centric representation</title>
       <link href="/2026/06/08/embodied-intelligence-notes-9-affordance-object-centric/"/>
       <url>/2026/06/08/embodied-intelligence-notes-9-affordance-object-centric/</url>
@@ -652,7 +685,7 @@
       <link href="/2025/02/12/site-notes/"/>
       <url>/2025/02/12/site-notes/</url>
       
-        <content type="html"><![CDATA[<p>这个站点暂时不会被包装成很完整的作品集。它更像一个可以公开翻阅的工作台：读论文时的脉络、做实验时的坑、某个系统概念终于想清楚的一刻，都会先放在这里。</p><p>目前主要会写这些方向：</p><ul><li>强化学习与相关论文笔记</li><li>GPU、MIG、系统隔离与资源调度</li><li>AI 基础设施和工程实践</li><li>一些值得留下来的学习过程</li></ul><p>现在强化学习这条线已经先整理成几篇连续笔记：</p><ul><li>MDP、价值函数、Bellman equation</li><li>动态规划、TD、DQN、策略梯度</li><li>policy gradient、Actor-Critic、PPO</li><li>Offline RL 以及它和机器人数据的关系</li><li>连续控制、DDPG、TD3、SAC</li><li>Model-based RL 和 world model</li><li>Hierarchical RL、skill learning、options</li><li>Reward modeling、preference learning 和 human feedback</li><li>Exploration、uncertainty、curiosity 和 safe exploration</li><li>Imitation learning、behavior cloning 和 demonstration data</li><li>具身智能中的 VLA、机器人数据和分层策略</li><li>Diffusion policy、action chunking 和动作表示</li><li>具身策略评估、failure modes 和 safety</li><li>Sim-to-real、deployment gap 和真实数据闭环</li><li>Robot foundation model、数据混合和 data flywheel</li><li>World model、latent planning 和具身智能里的反事实试错</li><li>Memory、long-horizon tasks 和任务进度跟踪</li><li>Affordance、object-centric representation 和 action-conditionedperception</li></ul><p>如果想按主题顺序读，可以直接看<a href="/notes/">笔记索引</a>。</p><p>后面会继续补具身智能相关内容。这里暂时不追求每篇都像正式教程，更希望保留一点“当时怎么想清楚”的过程。</p>]]></content>
+        <content type="html"><![CDATA[<p>这个站点暂时不会被包装成很完整的作品集。它更像一个可以公开翻阅的工作台：读论文时的脉络、做实验时的坑、某个系统概念终于想清楚的一刻，都会先放在这里。</p><p>目前主要会写这些方向：</p><ul><li>强化学习与相关论文笔记</li><li>GPU、MIG、系统隔离与资源调度</li><li>AI 基础设施和工程实践</li><li>一些值得留下来的学习过程</li></ul><p>现在强化学习这条线已经先整理成几篇连续笔记：</p><ul><li>MDP、价值函数、Bellman equation</li><li>动态规划、TD、DQN、策略梯度</li><li>policy gradient、Actor-Critic、PPO</li><li>Offline RL 以及它和机器人数据的关系</li><li>连续控制、DDPG、TD3、SAC</li><li>Model-based RL 和 world model</li><li>Hierarchical RL、skill learning、options</li><li>Reward modeling、preference learning 和 human feedback</li><li>Exploration、uncertainty、curiosity 和 safe exploration</li><li>Imitation learning、behavior cloning 和 demonstration data</li><li>具身智能中的 VLA、机器人数据和分层策略</li><li>Diffusion policy、action chunking 和动作表示</li><li>具身策略评估、failure modes 和 safety</li><li>Sim-to-real、deployment gap 和真实数据闭环</li><li>Robot foundation model、数据混合和 data flywheel</li><li>World model、latent planning 和具身智能里的反事实试错</li><li>Memory、long-horizon tasks 和任务进度跟踪</li><li>Affordance、object-centric representation 和 action-conditionedperception</li><li>Human-in-the-loop、intervention learning 和 failure labeling</li></ul><p>如果想按主题顺序读，可以直接看<a href="/notes/">笔记索引</a>。</p><p>后面会继续补具身智能相关内容。这里暂时不追求每篇都像正式教程，更希望保留一点“当时怎么想清楚”的过程。</p>]]></content>
       
       
       <categories>
