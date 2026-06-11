@@ -4,6 +4,39 @@
   
     
     <entry>
+      <title>Embodied intelligence notes 11 - runtime safety and guardrails</title>
+      <link href="/2026/06/10/embodied-intelligence-notes-11-runtime-safety/"/>
+      <url>/2026/06/10/embodied-intelligence-notes-11-runtime-safety/</url>
+      
+        <content type="html"><![CDATA[<p>前面写 human-in-the-loop时说过，安全边界不能只靠人类接管。这里继续往下写 runtime safety。</p><p>很多论文会把策略写成：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">observation -&gt; policy -&gt; action</span><br></pre></td></tr></table></figure><p>但真实机器人部署时，中间不会这么裸。policy输出的动作通常要经过一层或多层 guardrail，最后才会真的发给机器人。</p><p>更接近实际的是：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">observation -&gt; policy -&gt; safety filter -&gt; controller -&gt; robot</span><br></pre></td></tr></table></figure><p>这篇先把这层 runtime system 拆开。</p><h2 id="policy-is-not-the-whole-system">policy is not the wholesystem</h2><p>策略模型不是系统边界。</p><p>一个机器人应用里，除了 policy，至少还有：</p><ul><li>perception pipeline</li><li>state estimator</li><li>controller</li><li>safety monitor</li><li>task planner</li><li>human interface</li><li>logger</li><li>reset / recovery logic</li></ul><p>如果只优化 policy successrate，很容易忽略这些部分。但部署时，很多失败不是 policy本身“不会做”，而是系统没有处理边界情况。</p><p>比如相机掉帧、目标物体丢失、夹爪反馈异常、网络延迟，这些都不是普通benchmark 会认真覆盖的问题。</p><h2 id="action-constraints">action constraints</h2><p>最基础的 guardrail 是动作约束。</p><p>比如限制：</p><ul><li>workspace boundary</li><li>joint limit</li><li>velocity</li><li>acceleration</li><li>force / torque</li><li>gripper width</li><li>end-effector orientation</li></ul><p>这类约束不应该交给 policy自己学。因为一次越界就可能造成真实损失。</p><p>动作约束可以很简单：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">raw_action -&gt; clamp / project -&gt; safe_action</span><br></pre></td></tr></table></figure><p>但要注意，裁剪动作会改变 policy 的实际执行分布。policy以为自己输出了一个动作，真实机器人执行的是另一个动作。这个差异需要被记录，否则后续训练数据会混乱。</p><h2 id="safety-filter">safety filter</h2><p>safety filter 比简单 clamp更进一步。它会根据当前状态判断动作是否允许。</p><p>比如：</p><ul><li>末端路径是否会碰撞</li><li>目标点是否在可达空间</li><li>速度是否接近人类</li><li>力控状态是否异常</li><li>是否即将进入不可恢复姿态</li></ul><p>如果动作不安全，可以：</p><ul><li>reject</li><li>slow down</li><li>replace with safe action</li><li>trigger fallback</li><li>ask human</li></ul><p>这里的关键是：filter 应该在 policy 和 robot 之间有明确权限。policy可以建议动作，但不能绕过安全层。</p><h2 id="watchdog">watchdog</h2><p>runtime system 里需要 watchdog。</p><p>watchdog 不是智能模块，它更像一组简单但可靠的检查：</p><ul><li>perception 是否超时</li><li>controller 是否还在响应</li><li>robot state 是否更新</li><li>action command 是否连续异常</li><li>task 是否卡住太久</li><li>emergency stop 是否触发</li></ul><p>很多真实系统故障不是模型预测错，而是某个子系统停住了。如果没有watchdog，policy 可能继续输出动作，但世界状态已经不可信。</p><p>这类检查不需要复杂，但必须稳定。</p><h2 id="fallback">fallback</h2><p>发现异常后不能只说 failed，还需要 fallback。</p><p>常见 fallback：</p><ul><li>stop motion</li><li>move to safe pose</li><li>open gripper</li><li>re-detect scene</li><li>retry from previous subgoal</li><li>ask human</li><li>abort task</li></ul><p>fallback的设计要和任务风险匹配。桌面整理任务可以慢慢停下来；靠近人类的移动机器人则可能需要更严格的急停逻辑。</p><p>一个可用系统应该知道什么时候继续，什么时候退回安全状态。</p><h2 id="uncertainty-gate">uncertainty gate</h2><p>前面写 exploration 和 world model 时都提过uncertainty。部署时，uncertainty 可以变成 gate。</p><p>比如：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">if perception_uncertainty high:</span><br><span class="line">    re-observe / ask human</span><br><span class="line">if action_value uncertain:</span><br><span class="line">    sample safer action / slow down</span><br><span class="line">if world_model_disagreement high:</span><br><span class="line">    avoid rollout plan</span><br></pre></td></tr></table></figure><p>不是所有不确定都要停机。有些不确定可以通过多看一眼解决，有些可以通过降速解决，有些才需要人类介入。</p><p>这比把 uncertainty 当成论文里的额外指标更实际：它应该影响 runtimedecision。</p><h2 id="logging">logging</h2><p>安全系统必须记录发生了什么。</p><p>至少要记录：</p><ul><li>raw policy action</li><li>filtered action</li><li>filter reason</li><li>robot state</li><li>perception confidence</li><li>intervention event</li><li>fallback event</li><li>task outcome</li></ul><p>这些日志对后续训练很重要。比如如果很多动作都被 filter 裁掉，说明policy 学到的动作分布和真实可执行空间不匹配。</p><p>没有日志，安全层只是挡住问题；有日志，安全层还能把问题变成下一轮数据。</p><h2 id="evaluation-of-safety-layer">evaluation of safety layer</h2><p>safety layer 自己也要评估。</p><p>几个问题：</p><ul><li>它有没有拦住危险动作？</li><li>false positive 多不多？</li><li>是否让动作变得太保守？</li><li>是否引入抖动？</li><li>是否影响任务完成率？</li><li>是否覆盖真实部署里的主要风险？</li></ul><p>过弱的 safety layer 没用；过强的 safety layer会让机器人什么都不敢做。</p><p>所以安全不是越保守越好，而是要把风险压到可接受范围，同时保持任务能力。</p><h2 id="relation-to-learning">relation to learning</h2><p>runtime safety 不只是工程外壳，也会影响学习。</p><p>因为训练数据里看到的是 filtered action 和真实结果。如果不区分 rawaction 和 executed action，模型可能学错。</p><p>比较好的记录方式是：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">observation</span><br><span class="line">raw_policy_action</span><br><span class="line">executed_action</span><br><span class="line">safety_filter_reason</span><br><span class="line">next_observation</span><br><span class="line">outcome</span><br></pre></td></tr></table></figure><p>这样后续可以分析：到底是 policy 选错了，还是 safety filter改了动作，还是 controller 没执行到位。</p><p>这也和 human-in-the-loop 接上。人类介入、safety filter、fallback都是部署时产生的监督信号。</p><h2 id="小结">小结</h2><p>runtime safety 可以先记：</p><ul><li>policy 不是整个机器人系统</li><li>action constraints 应该显式存在，不能只靠模型学</li><li>safety filter 要有权限拦截或替换动作</li><li>watchdog 负责发现系统级异常</li><li>fallback 决定异常后怎么回到安全状态</li><li>uncertainty 可以做 runtime gate</li><li>日志要记录 raw action、executed action 和 filter reason</li><li>safety layer 自己也需要评估</li></ul><p>具身智能最后不是把一个模型放到机器人上就结束。真正能跑起来的系统，往往是policy、controller、safety layer、human feedback 和 logging一起工作。</p>]]></content>
+      
+      
+      <categories>
+          
+          <category> 具身智能 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> Embodied AI </tag>
+            
+            <tag> Robotics </tag>
+            
+            <tag> Safety </tag>
+            
+            <tag> Deployment </tag>
+            
+            <tag> Runtime </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
       <title>Embodied intelligence notes 10 - human-in-the-loop and intervention learning</title>
       <link href="/2026/06/09/embodied-intelligence-notes-10-human-in-the-loop/"/>
       <url>/2026/06/09/embodied-intelligence-notes-10-human-in-the-loop/</url>
@@ -685,7 +718,7 @@
       <link href="/2025/02/12/site-notes/"/>
       <url>/2025/02/12/site-notes/</url>
       
-        <content type="html"><![CDATA[<p>这个站点暂时不会被包装成很完整的作品集。它更像一个可以公开翻阅的工作台：读论文时的脉络、做实验时的坑、某个系统概念终于想清楚的一刻，都会先放在这里。</p><p>目前主要会写这些方向：</p><ul><li>强化学习与相关论文笔记</li><li>GPU、MIG、系统隔离与资源调度</li><li>AI 基础设施和工程实践</li><li>一些值得留下来的学习过程</li></ul><p>现在强化学习这条线已经先整理成几篇连续笔记：</p><ul><li>MDP、价值函数、Bellman equation</li><li>动态规划、TD、DQN、策略梯度</li><li>policy gradient、Actor-Critic、PPO</li><li>Offline RL 以及它和机器人数据的关系</li><li>连续控制、DDPG、TD3、SAC</li><li>Model-based RL 和 world model</li><li>Hierarchical RL、skill learning、options</li><li>Reward modeling、preference learning 和 human feedback</li><li>Exploration、uncertainty、curiosity 和 safe exploration</li><li>Imitation learning、behavior cloning 和 demonstration data</li><li>具身智能中的 VLA、机器人数据和分层策略</li><li>Diffusion policy、action chunking 和动作表示</li><li>具身策略评估、failure modes 和 safety</li><li>Sim-to-real、deployment gap 和真实数据闭环</li><li>Robot foundation model、数据混合和 data flywheel</li><li>World model、latent planning 和具身智能里的反事实试错</li><li>Memory、long-horizon tasks 和任务进度跟踪</li><li>Affordance、object-centric representation 和 action-conditionedperception</li><li>Human-in-the-loop、intervention learning 和 failure labeling</li></ul><p>如果想按主题顺序读，可以直接看<a href="/notes/">笔记索引</a>。</p><p>后面会继续补具身智能相关内容。这里暂时不追求每篇都像正式教程，更希望保留一点“当时怎么想清楚”的过程。</p>]]></content>
+        <content type="html"><![CDATA[<p>这个站点暂时不会被包装成很完整的作品集。它更像一个可以公开翻阅的工作台：读论文时的脉络、做实验时的坑、某个系统概念终于想清楚的一刻，都会先放在这里。</p><p>目前主要会写这些方向：</p><ul><li>强化学习与相关论文笔记</li><li>GPU、MIG、系统隔离与资源调度</li><li>AI 基础设施和工程实践</li><li>一些值得留下来的学习过程</li></ul><p>现在强化学习这条线已经先整理成几篇连续笔记：</p><ul><li>MDP、价值函数、Bellman equation</li><li>动态规划、TD、DQN、策略梯度</li><li>policy gradient、Actor-Critic、PPO</li><li>Offline RL 以及它和机器人数据的关系</li><li>连续控制、DDPG、TD3、SAC</li><li>Model-based RL 和 world model</li><li>Hierarchical RL、skill learning、options</li><li>Reward modeling、preference learning 和 human feedback</li><li>Exploration、uncertainty、curiosity 和 safe exploration</li><li>Imitation learning、behavior cloning 和 demonstration data</li><li>具身智能中的 VLA、机器人数据和分层策略</li><li>Diffusion policy、action chunking 和动作表示</li><li>具身策略评估、failure modes 和 safety</li><li>Sim-to-real、deployment gap 和真实数据闭环</li><li>Robot foundation model、数据混合和 data flywheel</li><li>World model、latent planning 和具身智能里的反事实试错</li><li>Memory、long-horizon tasks 和任务进度跟踪</li><li>Affordance、object-centric representation 和 action-conditionedperception</li><li>Human-in-the-loop、intervention learning 和 failure labeling</li><li>Runtime safety、guardrails 和部署日志</li></ul><p>如果想按主题顺序读，可以直接看<a href="/notes/">笔记索引</a>。</p><p>后面会继续补具身智能相关内容。这里暂时不追求每篇都像正式教程，更希望保留一点“当时怎么想清楚”的过程。</p>]]></content>
       
       
       <categories>
