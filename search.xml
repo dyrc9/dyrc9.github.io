@@ -4,6 +4,39 @@
   
     
     <entry>
+      <title>Embodied intelligence notes 12 - tactile feedback and contact-rich manipulation</title>
+      <link href="/2026/06/17/embodied-intelligence-notes-12-tactile-feedback/"/>
+      <url>/2026/06/17/embodied-intelligence-notes-12-tactile-feedback/</url>
+      
+        <content type="html"><![CDATA[<p>前面写 affordance 时提到“看起来能抓，不等于真的能抓”。这里继续往下看tactile feedback。</p><p>很多机器人任务不是远远看一眼就能解决的。真正难的地方经常发生在接触之后：夹爪碰到物体、物体开始滑、插入时卡住、推的时候摩擦变了。视觉能看到大概位置，但不一定能看到力和接触状态。</p><p>所以 tactile / force feedback 在 contact-rich manipulation里很关键。</p><h2 id="vision-is-not-enough">vision is not enough</h2><p>视觉适合回答：</p><ul><li>物体在哪里</li><li>大概形状是什么</li><li>抓取点在哪里</li><li>目标区域在哪里</li><li>场景里有没有障碍</li></ul><p>但接触发生后，很多信息视觉不一定可靠：</p><ul><li>物体有没有被夹稳</li><li>是否正在滑动</li><li>接触力是不是太大</li><li>插入时是不是卡边</li><li>抓取点是否真的受力</li><li>物体是否被压变形</li></ul><p>比如透明杯子、软物体、细小零件，视觉误差会更明显。机器人可能“看起来”已经抓住了，但实际上只是轻轻碰到。</p><p>这时触觉就是另一条观测通道。</p><h2 id="force-and-tactile-signals">force and tactile signals</h2><p>不同系统里的接触反馈不一样。</p><p>常见信号：</p><ul><li>joint torque</li><li>force/torque sensor</li><li>gripper current</li><li>tactile array</li><li>pressure distribution</li><li>slip signal</li><li>vibration</li></ul><p>这些信号的粒度不同。关节力矩比较粗，但很多机械臂本来就有；tactilearray 更细，可以看到接触位置和压力分布，但硬件更复杂。</p><p>从学习角度看，它们都在补同一个东西：视觉看不到的 contact state。</p><h2 id="grasping">grasping</h2><p>抓取是触觉最直观的场景。</p><p>视觉可以给一个 grasp pose，但执行后仍然要判断：</p><ul><li>有没有接触到物体</li><li>左右夹爪受力是否平衡</li><li>物体是否滑动</li><li>是否夹得太紧</li><li>抬起时是否仍然稳定</li></ul><p>没有触觉时，策略只能从视觉或夹爪位置间接猜。这样对遮挡、透明物体、细薄物体都不稳。</p><p>一个简单闭环可以是：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">close gripper -&gt; detect contact -&gt; adjust force -&gt; lift -&gt; monitor slip</span><br></pre></td></tr></table></figure><p>这比一次性闭合夹爪更稳。</p><h2 id="insertion-and-assembly">insertion and assembly</h2><p>插入、装配、插 peg 这类任务更依赖接触。</p><p>视觉可以把 peg 移到孔附近，但最后几毫米经常靠力控和微调。</p><p>常见问题：</p><ul><li>角度差一点，卡住</li><li>力太大，损坏零件</li><li>力太小，插不进去</li><li>孔被遮挡，看不到真实接触</li></ul><p>这类任务里，policy 如果只靠RGB，很容易学到脆弱策略。更常见的做法是视觉负责粗定位，force / tactilefeedback 负责最后接触阶段。</p><p>可以粗略拆成：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">vision: move near target</span><br><span class="line">force/tactile: align and insert</span><br></pre></td></tr></table></figure><p>这也是为什么很多系统不会完全端到端，而是把接触阶段交给 compliantcontroller 或 force controller。</p><h2 id="tactile-and-safety">tactile and safety</h2><p>触觉也和 safety 直接相关。</p><p>如果接触力异常，系统应该能：</p><ul><li>slow down</li><li>stop</li><li>release gripper</li><li>back off</li><li>switch to recovery</li></ul><p>比如机器人推一个物体，力突然变大，可能说明卡住了或碰到别的东西。继续执行原动作可能损坏环境。</p><p>这和 runtime safety 那篇接上：tactile signal 可以作为 safety monitor的输入。</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">if contact_force &gt; threshold:</span><br><span class="line">    stop / back off / ask human</span><br></pre></td></tr></table></figure><p>阈值不是最终答案，但作为底层 guardrail 很有用。</p><h2 id="tactile-representation">tactile representation</h2><p>触觉数据也需要表示学习。</p><p>原始 tactile array可能是高维时间序列。策略真正需要的是更抽象的状态：</p><ul><li>contact / no contact</li><li>contact location</li><li>pressure center</li><li>slip probability</li><li>grasp stability</li><li>force direction</li><li>object compliance</li></ul><p>这些表示可以直接进入 policy，也可以进入 world model 或 safetyfilter。</p><p>比如 world model 不一定只预测视觉状态，也可以预测：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">action -&gt; next contact state</span><br></pre></td></tr></table></figure><p>这对接触丰富任务比预测下一帧图像更有用。</p><h2 id="multimodal-fusion">multimodal fusion</h2><p>视觉和触觉的融合也不简单。</p><p>视觉是远距离、全局、空间结构强；触觉是近距离、局部、接触后才出现。</p><p>一个合理的策略可能是：</p><ul><li>接触前主要依赖视觉</li><li>接触中主要依赖 tactile / force</li><li>接触后用视觉确认任务结果</li></ul><p>也就是说，多模态权重应该随任务阶段变化。</p><p>如果模型一开始就把所有模态拼在一起，不一定能学到这种阶段性。memory 和task progress 也会影响该信哪种传感器。</p><h2 id="data-problem">data problem</h2><p>触觉数据的难点是规模。</p><p>视觉和语言数据多，触觉数据少得多，而且不同硬件之间差异很大。一个tactile sensor 的信号格式，很难直接迁移到另一个 sensor。</p><p>所以 tactile foundation model 这类事情比 vision-language更难。数据采集、标定、硬件一致性都是问题。</p><p>更现实的路线可能是：</p><ul><li>用视觉/语言做高层理解</li><li>用少量 tactile 数据学局部 skill</li><li>用 force thresholds 做 safety</li><li>用真实失败数据补 contact recovery</li></ul><p>也就是不指望触觉一口气解决全部问题，而是在最需要的接触阶段发挥作用。</p><h2 id="小结">小结</h2><p>tactile feedback 这条线可以先记：</p><ul><li>视觉不一定能判断真实接触状态</li><li>force / tactile signal 能补 grasp stability、slip、contact force等信息</li><li>抓取和插入任务尤其依赖触觉闭环</li><li>tactile signal 可以进入 safety monitor 和 fallback</li><li>触觉表示应该接近 contact state，而不是只保留原始传感器读数</li><li>多模态融合要考虑任务阶段</li><li>触觉数据规模和硬件差异是现实瓶颈</li></ul><p>具身智能不只是“看见然后行动”。很多时候，真正让策略稳定的是接触之后还能感知、调整和退出。</p>]]></content>
+      
+      
+      <categories>
+          
+          <category> 具身智能 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> Embodied AI </tag>
+            
+            <tag> Robotics </tag>
+            
+            <tag> Tactile </tag>
+            
+            <tag> Contact </tag>
+            
+            <tag> Control </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
       <title>Embodied intelligence notes 11 - runtime safety and guardrails</title>
       <link href="/2026/06/10/embodied-intelligence-notes-11-runtime-safety/"/>
       <url>/2026/06/10/embodied-intelligence-notes-11-runtime-safety/</url>
@@ -718,7 +751,7 @@
       <link href="/2025/02/12/site-notes/"/>
       <url>/2025/02/12/site-notes/</url>
       
-        <content type="html"><![CDATA[<p>这个站点暂时不会被包装成很完整的作品集。它更像一个可以公开翻阅的工作台：读论文时的脉络、做实验时的坑、某个系统概念终于想清楚的一刻，都会先放在这里。</p><p>目前主要会写这些方向：</p><ul><li>强化学习与相关论文笔记</li><li>GPU、MIG、系统隔离与资源调度</li><li>AI 基础设施和工程实践</li><li>一些值得留下来的学习过程</li></ul><p>现在强化学习这条线已经先整理成几篇连续笔记：</p><ul><li>MDP、价值函数、Bellman equation</li><li>动态规划、TD、DQN、策略梯度</li><li>policy gradient、Actor-Critic、PPO</li><li>Offline RL 以及它和机器人数据的关系</li><li>连续控制、DDPG、TD3、SAC</li><li>Model-based RL 和 world model</li><li>Hierarchical RL、skill learning、options</li><li>Reward modeling、preference learning 和 human feedback</li><li>Exploration、uncertainty、curiosity 和 safe exploration</li><li>Imitation learning、behavior cloning 和 demonstration data</li><li>具身智能中的 VLA、机器人数据和分层策略</li><li>Diffusion policy、action chunking 和动作表示</li><li>具身策略评估、failure modes 和 safety</li><li>Sim-to-real、deployment gap 和真实数据闭环</li><li>Robot foundation model、数据混合和 data flywheel</li><li>World model、latent planning 和具身智能里的反事实试错</li><li>Memory、long-horizon tasks 和任务进度跟踪</li><li>Affordance、object-centric representation 和 action-conditionedperception</li><li>Human-in-the-loop、intervention learning 和 failure labeling</li><li>Runtime safety、guardrails 和部署日志</li></ul><p>如果想按主题顺序读，可以直接看<a href="/notes/">笔记索引</a>。</p><p>后面会继续补具身智能相关内容。这里暂时不追求每篇都像正式教程，更希望保留一点“当时怎么想清楚”的过程。</p>]]></content>
+        <content type="html"><![CDATA[<p>这个站点暂时不会被包装成很完整的作品集。它更像一个可以公开翻阅的工作台：读论文时的脉络、做实验时的坑、某个系统概念终于想清楚的一刻，都会先放在这里。</p><p>目前主要会写这些方向：</p><ul><li>强化学习与相关论文笔记</li><li>GPU、MIG、系统隔离与资源调度</li><li>AI 基础设施和工程实践</li><li>一些值得留下来的学习过程</li></ul><p>现在强化学习这条线已经先整理成几篇连续笔记：</p><ul><li>MDP、价值函数、Bellman equation</li><li>动态规划、TD、DQN、策略梯度</li><li>policy gradient、Actor-Critic、PPO</li><li>Offline RL 以及它和机器人数据的关系</li><li>连续控制、DDPG、TD3、SAC</li><li>Model-based RL 和 world model</li><li>Hierarchical RL、skill learning、options</li><li>Reward modeling、preference learning 和 human feedback</li><li>Exploration、uncertainty、curiosity 和 safe exploration</li><li>Imitation learning、behavior cloning 和 demonstration data</li><li>具身智能中的 VLA、机器人数据和分层策略</li><li>Diffusion policy、action chunking 和动作表示</li><li>具身策略评估、failure modes 和 safety</li><li>Sim-to-real、deployment gap 和真实数据闭环</li><li>Robot foundation model、数据混合和 data flywheel</li><li>World model、latent planning 和具身智能里的反事实试错</li><li>Memory、long-horizon tasks 和任务进度跟踪</li><li>Affordance、object-centric representation 和 action-conditionedperception</li><li>Human-in-the-loop、intervention learning 和 failure labeling</li><li>Runtime safety、guardrails 和部署日志</li><li>Tactile feedback、contact-rich manipulation和接触阶段的闭环控制</li></ul><p>如果想按主题顺序读，可以直接看<a href="/notes/">笔记索引</a>。</p><p>后面会继续补具身智能相关内容。这里暂时不追求每篇都像正式教程，更希望保留一点“当时怎么想清楚”的过程。</p>]]></content>
       
       
       <categories>
