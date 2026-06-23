@@ -4,6 +4,39 @@
   
     
     <entry>
+      <title>Embodied intelligence notes 13 - task planning and skill composition</title>
+      <link href="/2026/06/23/embodied-intelligence-notes-13-task-planning/"/>
+      <url>/2026/06/23/embodied-intelligence-notes-13-task-planning/</url>
+      
+        <content type="html"><![CDATA[<p>前面写过 hierarchical RL、VLA、memory、world model 和 runtimesafety。这些东西最后都会落到一个问题上：长程任务怎么执行？</p><p>比如一句指令：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">put the cup into the drawer</span><br></pre></td></tr></table></figure><p>它不是一个单步动作。机器人需要找到杯子、确认抽屉、打开抽屉、抓杯子、移动、放进去、检查结果。中间任何一步失败，都要恢复或重新规划。</p><p>所以这里补一篇 task planning and skill composition。</p><h2 id="not-one-policy-call">not one policy call</h2><p>短任务里可以粗略写成：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">observation + instruction -&gt; action</span><br></pre></td></tr></table></figure><p>长程任务里这么写会太扁。一个模型直接从图像和语言输出几百步低层控制，可能在演示数据里看起来可行，但实际部署很难稳定。</p><p>更现实的结构是：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">instruction -&gt; subgoals -&gt; skills -&gt; low-level control</span><br></pre></td></tr></table></figure><p>这里每一层都可以学习，但接口要清楚。高层负责“下一步该做什么”，低层负责“怎么把这一步做好”。</p><h2 id="subgoals">subgoals</h2><p>subgoal 是任务拆解的中间状态。</p><p>比如“把杯子放进抽屉”可以拆成：</p><ol type="1"><li>locate cup</li><li>locate drawer</li><li>open drawer</li><li>grasp cup</li><li>move cup to drawer</li><li>release cup</li><li>verify cup inside drawer</li></ol><p>这些 subgoal 不一定要人工写死。VLA 或 planner可以动态生成。但无论怎么生成，好的 subgoal 应该有两个特点：</p><ul><li>可执行</li><li>可验证</li></ul><p>如果一个 subgoal 没法判断是否完成，后面的 planning 就会变得很脆。</p><h2 id="skills">skills</h2><p>skill 是比低层动作更大的控制单元。</p><p>常见 skill：</p><ul><li>reach</li><li>grasp</li><li>lift</li><li>place</li><li>push</li><li>pull</li><li>open</li><li>insert</li><li>recover</li></ul><p>skill 可以看成 option，也可以看成一个带参数的 policy：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">skill(name, parameters, observation) -&gt; action sequence</span><br></pre></td></tr></table></figure><p>比如 <code>grasp(cup, side)</code> 或<code>open(drawer, handle)</code>。</p><p>这样做的好处是，高层 planner 不需要每一步都处理关节控制。它只要选择skill 和参数，让低层 controller 或 policy 执行。</p><h2 id="precondition-and-effect">precondition and effect</h2><p>如果想让 skill 能组合，就要知道它什么时候能用、执行后会改变什么。</p><p>这就是 precondition 和 effect。</p><p>比如 <code>grasp(cup)</code>：</p><ul><li>precondition：杯子可见、可达、夹爪空</li><li>effect：杯子在夹爪里，或者 grasp failed</li></ul><p><code>place(cup, drawer)</code>：</p><ul><li>precondition：杯子已被抓住、抽屉打开、目标区域可达</li><li>effect：杯子在抽屉里，夹爪空</li></ul><p>这些描述不一定要完全符号化，但系统里需要有等价的判断。否则 planner可能在抽屉没打开时尝试放杯子，或者在没抓住杯子时尝试移动杯子。</p><h2 id="verification">verification</h2><p>每个 skill 结束后都应该检查结果。</p><p>这比“按计划执行到底”更重要。真实机器人里，skill 可能失败：</p><ul><li>grasp 没抓住</li><li>pull 没拉开</li><li>place 后物体滑出</li><li>插入时卡住</li><li>视觉目标丢失</li></ul><p>所以长程执行应该是闭环：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">choose skill -&gt; execute -&gt; verify -&gt; continue / recover</span><br></pre></td></tr></table></figure><p>verification 可以来自视觉、触觉、force signal、state estimator 或human feedback。</p><p>如果没有 verification，planner 只是在假设世界按计划变化。</p><h2 id="recovery-loop">recovery loop</h2><p>长程任务一定要考虑 recovery。</p><p>失败不是只返回 <code>failed</code>，而是要问：</p><ul><li>能不能重试同一个 skill？</li><li>要不要换参数？</li><li>要不要回到上一个 subgoal？</li><li>要不要重新观察？</li><li>要不要请求人类介入？</li><li>要不要安全退出？</li></ul><p>比如抓取失败：</p><ol type="1"><li>重新检测杯子位置</li><li>换一个 grasp point</li><li>降低速度</li><li>如果连续失败，询问或切换策略</li></ol><p>这就把 memory、evaluation、human-in-the-loop 和 runtime safety接起来了。</p><h2 id="language-planner">language planner</h2><p>现在很多系统会用语言模型做高层planner。它的优势是能处理自然语言任务和常识拆解。</p><p>但直接让语言模型决定机器人动作有几个问题：</p><ul><li>它可能生成不可执行步骤</li><li>它不知道当前机器人能力边界</li><li>它可能忽略实时观测</li><li>它不一定能判断执行是否成功</li></ul><p>所以更稳的结构是让语言模型做候选计划，而不是最终执行者。</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">LLM proposes subgoals</span><br><span class="line">robot system checks feasibility</span><br><span class="line">skills execute</span><br><span class="line">verifier checks result</span><br><span class="line">planner revises</span><br></pre></td></tr></table></figure><p>高层语言能力有价值，但必须接到机器人自己的 perception、skill library和 safety layer 上。</p><h2 id="world-model-as-planner-helper">world model as plannerhelper</h2><p>world model 可以帮助 planner 判断某个 skill 后世界会怎么变。</p><p>比如：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">state + open(drawer) -&gt; drawer open?</span><br><span class="line">state + push(cup) -&gt; cup near edge?</span><br><span class="line">state + place(cup, drawer) -&gt; stable?</span><br></pre></td></tr></table></figure><p>这不是要完整预测世界，而是为计划提供可用的 consequence estimate。</p><p>如果 world model 不确定，planner 可以选择更保守的skill，或者先收集更多观测。</p><h2 id="小结">小结</h2><p>task planning and skill composition 可以先记：</p><ul><li>长程任务不适合只靠一次 policy call</li><li>subgoal 应该可执行、可验证</li><li>skill 是可复用的动作单元，可以带参数</li><li>precondition 和 effect 决定 skill 能不能组合</li><li>每个 skill 后都需要 verification</li><li>recovery loop 是长程任务稳定性的关键</li><li>LLM 更适合做候选 planner，不应绕过机器人系统检查</li><li>world model 可以帮助评估 skill 后果</li></ul><p>具身智能里的长程能力不是一个大模型单独“想明白”就够了。更像是planning、skills、verification、memory、safety 和 recovery这些部件一起把任务稳稳接住。</p>]]></content>
+      
+      
+      <categories>
+          
+          <category> 具身智能 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> Planning </tag>
+            
+            <tag> Embodied AI </tag>
+            
+            <tag> Robotics </tag>
+            
+            <tag> VLA </tag>
+            
+            <tag> Skills </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
       <title>Embodied intelligence notes 12 - tactile feedback and contact-rich manipulation</title>
       <link href="/2026/06/17/embodied-intelligence-notes-12-tactile-feedback/"/>
       <url>/2026/06/17/embodied-intelligence-notes-12-tactile-feedback/</url>
@@ -751,7 +784,7 @@
       <link href="/2025/02/12/site-notes/"/>
       <url>/2025/02/12/site-notes/</url>
       
-        <content type="html"><![CDATA[<p>这个站点暂时不会被包装成很完整的作品集。它更像一个可以公开翻阅的工作台：读论文时的脉络、做实验时的坑、某个系统概念终于想清楚的一刻，都会先放在这里。</p><p>目前主要会写这些方向：</p><ul><li>强化学习与相关论文笔记</li><li>GPU、MIG、系统隔离与资源调度</li><li>AI 基础设施和工程实践</li><li>一些值得留下来的学习过程</li></ul><p>现在强化学习这条线已经先整理成几篇连续笔记：</p><ul><li>MDP、价值函数、Bellman equation</li><li>动态规划、TD、DQN、策略梯度</li><li>policy gradient、Actor-Critic、PPO</li><li>Offline RL 以及它和机器人数据的关系</li><li>连续控制、DDPG、TD3、SAC</li><li>Model-based RL 和 world model</li><li>Hierarchical RL、skill learning、options</li><li>Reward modeling、preference learning 和 human feedback</li><li>Exploration、uncertainty、curiosity 和 safe exploration</li><li>Imitation learning、behavior cloning 和 demonstration data</li><li>具身智能中的 VLA、机器人数据和分层策略</li><li>Diffusion policy、action chunking 和动作表示</li><li>具身策略评估、failure modes 和 safety</li><li>Sim-to-real、deployment gap 和真实数据闭环</li><li>Robot foundation model、数据混合和 data flywheel</li><li>World model、latent planning 和具身智能里的反事实试错</li><li>Memory、long-horizon tasks 和任务进度跟踪</li><li>Affordance、object-centric representation 和 action-conditionedperception</li><li>Human-in-the-loop、intervention learning 和 failure labeling</li><li>Runtime safety、guardrails 和部署日志</li><li>Tactile feedback、contact-rich manipulation和接触阶段的闭环控制</li></ul><p>如果想按主题顺序读，可以直接看<a href="/notes/">笔记索引</a>。</p><p>后面会继续补具身智能相关内容。这里暂时不追求每篇都像正式教程，更希望保留一点“当时怎么想清楚”的过程。</p>]]></content>
+        <content type="html"><![CDATA[<p>这个站点暂时不会被包装成很完整的作品集。它更像一个可以公开翻阅的工作台：读论文时的脉络、做实验时的坑、某个系统概念终于想清楚的一刻，都会先放在这里。</p><p>目前主要会写这些方向：</p><ul><li>强化学习与相关论文笔记</li><li>GPU、MIG、系统隔离与资源调度</li><li>AI 基础设施和工程实践</li><li>一些值得留下来的学习过程</li></ul><p>现在强化学习这条线已经先整理成几篇连续笔记：</p><ul><li>MDP、价值函数、Bellman equation</li><li>动态规划、TD、DQN、策略梯度</li><li>policy gradient、Actor-Critic、PPO</li><li>Offline RL 以及它和机器人数据的关系</li><li>连续控制、DDPG、TD3、SAC</li><li>Model-based RL 和 world model</li><li>Hierarchical RL、skill learning、options</li><li>Reward modeling、preference learning 和 human feedback</li><li>Exploration、uncertainty、curiosity 和 safe exploration</li><li>Imitation learning、behavior cloning 和 demonstration data</li><li>具身智能中的 VLA、机器人数据和分层策略</li><li>Diffusion policy、action chunking 和动作表示</li><li>具身策略评估、failure modes 和 safety</li><li>Sim-to-real、deployment gap 和真实数据闭环</li><li>Robot foundation model、数据混合和 data flywheel</li><li>World model、latent planning 和具身智能里的反事实试错</li><li>Memory、long-horizon tasks 和任务进度跟踪</li><li>Affordance、object-centric representation 和 action-conditionedperception</li><li>Human-in-the-loop、intervention learning 和 failure labeling</li><li>Runtime safety、guardrails 和部署日志</li><li>Tactile feedback、contact-rich manipulation和接触阶段的闭环控制</li><li>Task planning、skill composition 和长程任务里的 recovery loop</li></ul><p>如果想按主题顺序读，可以直接看<a href="/notes/">笔记索引</a>。</p><p>后面会继续补具身智能相关内容。这里暂时不追求每篇都像正式教程，更希望保留一点“当时怎么想清楚”的过程。</p>]]></content>
       
       
       <categories>
