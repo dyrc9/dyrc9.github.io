@@ -4,6 +4,39 @@
   
     
     <entry>
+      <title>Embodied intelligence notes 14 - benchmark design and reproducibility</title>
+      <link href="/2026/06/25/embodied-intelligence-notes-14-benchmark-reproducibility/"/>
+      <url>/2026/06/25/embodied-intelligence-notes-14-benchmark-reproducibility/</url>
+      
+        <content type="html"><![CDATA[<p>前面写 evaluation时主要看单个策略怎么评估。这篇继续往外走一点：如果要设计一个具身智能benchmark，应该注意什么？</p><p>机器人 benchmark 很难做。NLP 或 vision 里，给一个固定 test set就能比较很多模型；机器人里，环境、硬件、重置方式、相机位置、物体状态都会影响结果。</p><p>所以 benchmark的价值不只是“排个榜”，更重要的是让结果可解释、可复现。</p><h2 id="task-definition">task definition</h2><p>第一个问题是任务到底是什么。</p><p>比如“把杯子放到盘子上”，至少要定义：</p><ul><li>哪些杯子算目标</li><li>盘子位置是否固定</li><li>杯子初始姿态怎么采样</li><li>成功条件是什么</li><li>允许推还是必须抓</li><li>中途碰到别的物体算不算失败</li></ul><p>如果这些不写清楚，两个系统都说 success rate90%，其实可能不是同一个任务。</p><p>任务定义应该尽量具体，但也不能具体到只剩一个固定场景。不然 benchmark测的是记忆和过拟合，不是泛化。</p><h2 id="initial-state-distribution">initial state distribution</h2><p>初始状态分布很关键。</p><p>机器人任务通常不是一个状态，而是一组状态：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">s_0 ~ p_initial(s)</span><br></pre></td></tr></table></figure><p>这个分布决定任务难度。</p><p>比如抓杯子：</p><ul><li>杯子永远在桌子中央，很简单</li><li>杯子随机放在桌面不同位置，难一点</li><li>杯子可能被部分遮挡，更难</li><li>杯子和其他物体混在一起，再难一点</li></ul><p>如果 benchmark 只给一个固定初始状态，策略很容易学到场景特化技巧。</p><p>所以报告结果时最好写清楚 initial statedistribution，而不是只写任务名字。</p><h2 id="success-condition">success condition</h2><p>success condition 也要具体。</p><p>比如放置任务：</p><ul><li>物体是否必须完全在目标区域内？</li><li>是否要保持稳定几秒？</li><li>允许轻微倾斜吗？</li><li>机器人松手后才算成功，还是抓着也算？</li><li>是否允许人类中途介入？</li></ul><p>这些细节会显著改变结果。</p><p>一个好的 success condition应该尽量可自动判断，同时符合真实任务意义。如果条件太宽，策略会钻空子；条件太窄，评估又会过于脆。</p><h2 id="trial-count">trial count</h2><p>机器人实验贵，所以很多论文 trial 数不多。</p><p>但 trial 太少时，success rate 很不稳定。比如 10 次里成功 8次，看起来是 80%，但置信区间其实很宽。</p><p>更合理的报告方式至少包括：</p><ul><li>number of trials</li><li>success count</li><li>mean success rate</li><li>confidence interval 或 bootstrap estimate</li><li>每类环境扰动下的单独结果</li></ul><p>如果只给一个平均数，很难判断差异是否真实。</p><h2 id="failure-taxonomy">failure taxonomy</h2><p>只报告 success rate 不够，失败类型也要记录。</p><p>比如：</p><ul><li>perception failure</li><li>planning failure</li><li>grasp failure</li><li>collision</li><li>slip</li><li>timeout</li><li>recovery failure</li><li>unsafe stop</li></ul><p>这些失败类型对应不同改进方向。</p><p>如果 A 策略失败主要是 perception，B 策略失败主要是collision，那么它们的下一步工作完全不同。只看总分会丢掉这些信息。</p><p>failure taxonomy也能帮助数据闭环：下一批数据应该补哪类失败，不能靠猜。</p><h2 id="intervention-protocol">intervention protocol</h2><p>很多真实机器人评估都会有人类介入，但介入协议必须写清楚。</p><p>需要定义：</p><ul><li>什么时候允许介入</li><li>介入后 trial 是否继续</li><li>介入算失败还是单独统计</li><li>soft intervention 和 hard reset 是否区分</li><li>emergency stop 是否单独计数</li></ul><p>如果一个系统成功率高但 intervention很多，不能和完全自主系统直接比较。</p><p>所以 benchmark 里最好把 autonomy 和 success 分开报告：</p><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">success rate</span><br><span class="line">intervention rate</span><br><span class="line">hard reset count</span><br><span class="line">emergency stop count</span><br></pre></td></tr></table></figure><h2 id="environment-variation">environment variation</h2><p>真实部署里的变化很多，benchmark 至少要覆盖一部分。</p><p>常见 variation：</p><ul><li>lighting</li><li>camera pose</li><li>object pose</li><li>distractor objects</li><li>object category</li><li>surface material</li><li>mild occlusion</li><li>sensor noise</li></ul><p>可以分层测试：</p><ul><li>clean setting</li><li>mild shift</li><li>hard shift</li></ul><p>这样能看出策略到底是基础能力不足，还是只对分布外变化敏感。</p><p>这比混成一个平均分更有信息。</p><h2 id="reproducibility-log">reproducibility log</h2><p>机器人 benchmark 要可复现，日志很重要。</p><p>至少应该记录：</p><ul><li>task config</li><li>initial state seed 或采样参数</li><li>object set</li><li>camera setup</li><li>robot model</li><li>controller config</li><li>policy checkpoint</li><li>raw action</li><li>executed action</li><li>outcome</li><li>failure label</li></ul><p>这些日志不一定全部公开，但系统内部必须保留。否则一旦结果异常，很难复盘。</p><p>尤其是 runtime safety 那篇提到的 raw action / executed action差异，在 benchmark 里也应该记录。</p><h2 id="sim-benchmark-vs-real-benchmark">sim benchmark vs realbenchmark</h2><p>仿真 benchmark 和真实 benchmark 各有价值。</p><p>仿真：</p><ul><li>便宜</li><li>可并行</li><li>容易复现</li><li>可以测试大量随机状态</li></ul><p>真实：</p><ul><li>更接近部署</li><li>暴露硬件和接触问题</li><li>评估 sim-to-real gap</li><li>成本高、噪声大</li></ul><p>我觉得两者不应该互相替代。仿真适合快速比较方法，真实评估适合确认系统是否真的可用。</p><p>如果一个方法只在 sim里很好，还不能说明能部署；如果只在一个真实场景里很好，也不能说明泛化。</p><h2 id="leaderboard-risk">leaderboard risk</h2><p>benchmark 一旦变成 leaderboard，就会有优化指标的倾向。</p><p>这不是坏事，但要小心：</p><ul><li>过拟合固定任务</li><li>忽略安全和干预成本</li><li>只优化平均成功率</li><li>少报失败细节</li><li>用复杂工程 trick 淹没方法本身</li></ul><p>所以 benchmark 最好不要只有一个总分。可以分成几个维度：</p><ul><li>task success</li><li>robustness</li><li>autonomy</li><li>safety</li><li>recovery</li><li>efficiency</li></ul><p>这样结果更难被一个数字掩盖。</p><h2 id="小结">小结</h2><p>具身智能 benchmark 可以先记：</p><ul><li>任务定义、初始状态分布和成功条件必须写清楚</li><li>trial count 太少时，success rate 信息有限</li><li>failure taxonomy 比单一平均分更有用</li><li>intervention protocol 要独立报告</li><li>environment variation 应该分层测试</li><li>reproducibility log 是后续复盘的基础</li><li>sim benchmark 和 real benchmark 互补</li><li>leaderboard 不应该只看一个总分</li></ul><p>机器人评估最怕“数字看起来很干净，但不知道发生了什么”。好的 benchmark应该让失败也有信息，让下一步改进有方向。</p>]]></content>
+      
+      
+      <categories>
+          
+          <category> 具身智能 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> Embodied AI </tag>
+            
+            <tag> Robotics </tag>
+            
+            <tag> Evaluation </tag>
+            
+            <tag> Benchmark </tag>
+            
+            <tag> Reproducibility </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
       <title>Embodied intelligence notes 13 - task planning and skill composition</title>
       <link href="/2026/06/23/embodied-intelligence-notes-13-task-planning/"/>
       <url>/2026/06/23/embodied-intelligence-notes-13-task-planning/</url>
@@ -784,7 +817,7 @@
       <link href="/2025/02/12/site-notes/"/>
       <url>/2025/02/12/site-notes/</url>
       
-        <content type="html"><![CDATA[<p>这个站点暂时不会被包装成很完整的作品集。它更像一个可以公开翻阅的工作台：读论文时的脉络、做实验时的坑、某个系统概念终于想清楚的一刻，都会先放在这里。</p><p>目前主要会写这些方向：</p><ul><li>强化学习与相关论文笔记</li><li>GPU、MIG、系统隔离与资源调度</li><li>AI 基础设施和工程实践</li><li>一些值得留下来的学习过程</li></ul><p>现在强化学习这条线已经先整理成几篇连续笔记：</p><ul><li>MDP、价值函数、Bellman equation</li><li>动态规划、TD、DQN、策略梯度</li><li>policy gradient、Actor-Critic、PPO</li><li>Offline RL 以及它和机器人数据的关系</li><li>连续控制、DDPG、TD3、SAC</li><li>Model-based RL 和 world model</li><li>Hierarchical RL、skill learning、options</li><li>Reward modeling、preference learning 和 human feedback</li><li>Exploration、uncertainty、curiosity 和 safe exploration</li><li>Imitation learning、behavior cloning 和 demonstration data</li><li>具身智能中的 VLA、机器人数据和分层策略</li><li>Diffusion policy、action chunking 和动作表示</li><li>具身策略评估、failure modes 和 safety</li><li>Sim-to-real、deployment gap 和真实数据闭环</li><li>Robot foundation model、数据混合和 data flywheel</li><li>World model、latent planning 和具身智能里的反事实试错</li><li>Memory、long-horizon tasks 和任务进度跟踪</li><li>Affordance、object-centric representation 和 action-conditionedperception</li><li>Human-in-the-loop、intervention learning 和 failure labeling</li><li>Runtime safety、guardrails 和部署日志</li><li>Tactile feedback、contact-rich manipulation和接触阶段的闭环控制</li><li>Task planning、skill composition 和长程任务里的 recovery loop</li></ul><p>如果想按主题顺序读，可以直接看<a href="/notes/">笔记索引</a>。</p><p>后面会继续补具身智能相关内容。这里暂时不追求每篇都像正式教程，更希望保留一点“当时怎么想清楚”的过程。</p>]]></content>
+        <content type="html"><![CDATA[<p>这个站点暂时不会被包装成很完整的作品集。它更像一个可以公开翻阅的工作台：读论文时的脉络、做实验时的坑、某个系统概念终于想清楚的一刻，都会先放在这里。</p><p>目前主要会写这些方向：</p><ul><li>强化学习与相关论文笔记</li><li>GPU、MIG、系统隔离与资源调度</li><li>AI 基础设施和工程实践</li><li>一些值得留下来的学习过程</li></ul><p>现在强化学习这条线已经先整理成几篇连续笔记：</p><ul><li>MDP、价值函数、Bellman equation</li><li>动态规划、TD、DQN、策略梯度</li><li>policy gradient、Actor-Critic、PPO</li><li>Offline RL 以及它和机器人数据的关系</li><li>连续控制、DDPG、TD3、SAC</li><li>Model-based RL 和 world model</li><li>Hierarchical RL、skill learning、options</li><li>Reward modeling、preference learning 和 human feedback</li><li>Exploration、uncertainty、curiosity 和 safe exploration</li><li>Imitation learning、behavior cloning 和 demonstration data</li><li>具身智能中的 VLA、机器人数据和分层策略</li><li>Diffusion policy、action chunking 和动作表示</li><li>具身策略评估、failure modes 和 safety</li><li>Sim-to-real、deployment gap 和真实数据闭环</li><li>Robot foundation model、数据混合和 data flywheel</li><li>World model、latent planning 和具身智能里的反事实试错</li><li>Memory、long-horizon tasks 和任务进度跟踪</li><li>Affordance、object-centric representation 和 action-conditionedperception</li><li>Human-in-the-loop、intervention learning 和 failure labeling</li><li>Runtime safety、guardrails 和部署日志</li><li>Tactile feedback、contact-rich manipulation和接触阶段的闭环控制</li><li>Task planning、skill composition 和长程任务里的 recovery loop</li><li>Benchmark design、failure taxonomy 和 reproducibility log</li></ul><p>如果想按主题顺序读，可以直接看<a href="/notes/">笔记索引</a>。</p><p>后面会继续补具身智能相关内容。这里暂时不追求每篇都像正式教程，更希望保留一点“当时怎么想清楚”的过程。</p>]]></content>
       
       
       <categories>

@@ -1,0 +1,368 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="author" content="Wu De"/><meta name="description" content="Wu De 的个人主页，记录强化学习、GPU/系统、AI 基础设施、具身智能和日常学习笔记。"/><meta name="keyword" content="强化学习,GPU,MIG,系统,AI,具身智能,博客"/><meta name="description" content="具身智能 benchmark 不只是给一个 success rate 排名，更重要的是把任务定义、初始状态、失败类型、环境扰动和日志协议写清楚。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Embodied intelligence notes 14 - benchmark design and reproducibility">
+<meta property="og:url" content="https://dyrc9.github.io/2026/06/25/embodied-intelligence-notes-14-benchmark-reproducibility/index.html">
+<meta property="og:site_name" content="Sine&#39; Website">
+<meta property="og:description" content="具身智能 benchmark 不只是给一个 success rate 排名，更重要的是把任务定义、初始状态、失败类型、环境扰动和日志协议写清楚。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-06-25T01:20:00.000Z">
+<meta property="article:modified_time" content="2026-06-25T01:20:00.000Z">
+<meta property="article:author" content="Wu De">
+<meta property="article:tag" content="Embodied AI">
+<meta property="article:tag" content="Robotics">
+<meta property="article:tag" content="Evaluation">
+<meta property="article:tag" content="Benchmark">
+<meta property="article:tag" content="Reproducibility">
+<meta name="twitter:card" content="summary"><title>Embodied intelligence notes 14 - benchmark design and reproducibility - Sine' Website - notes, systems, and small experiments</title><link rel="shortcut icon" href="/img/site-icon.png">
+<link rel="stylesheet" href="/css/style.css" id="dm-light">
+
+
+<link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+<meta name="generator" content="Hexo 7.3.0"><style>mjx-container[jax="SVG"] {
+  direction: ltr;
+}
+
+mjx-container[jax="SVG"] > svg {
+  overflow: visible;
+}
+
+mjx-container[jax="SVG"][display="true"] {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+}
+
+mjx-container[jax="SVG"][justify="left"] {
+  text-align: left;
+}
+
+mjx-container[jax="SVG"][justify="right"] {
+  text-align: right;
+}
+
+g[data-mml-node="merror"] > g {
+  fill: red;
+  stroke: red;
+}
+
+g[data-mml-node="merror"] > rect[data-background] {
+  fill: yellow;
+  stroke: none;
+}
+
+g[data-mml-node="mtable"] > line[data-line] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > rect[data-frame] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > .mjx-dashed {
+  stroke-dasharray: 140;
+}
+
+g[data-mml-node="mtable"] > .mjx-dotted {
+  stroke-linecap: round;
+  stroke-dasharray: 0,140;
+}
+
+g[data-mml-node="mtable"] > svg {
+  overflow: visible;
+}
+
+[jax="SVG"] mjx-tool {
+  display: inline-block;
+  position: relative;
+  width: 0;
+  height: 0;
+}
+
+[jax="SVG"] mjx-tool > mjx-tip {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+mjx-tool > mjx-tip {
+  display: inline-block;
+  padding: .2em;
+  border: 1px solid #888;
+  font-size: 70%;
+  background-color: #F8F8F8;
+  color: black;
+  box-shadow: 2px 2px 5px #AAAAAA;
+}
+
+g[data-mml-node="maction"][data-toggle] {
+  cursor: pointer;
+}
+
+mjx-status {
+  display: block;
+  position: fixed;
+  left: 1em;
+  bottom: 1em;
+  min-width: 25%;
+  padding: .2em .4em;
+  border: 1px solid #888;
+  font-size: 90%;
+  background-color: #F8F8F8;
+  color: black;
+}
+
+foreignObject[data-mjx-xml] {
+  font-family: initial;
+  line-height: normal;
+  overflow: visible;
+}
+
+.MathJax path {
+  stroke-width: 3;
+}
+
+mjx-container[display="true"] {
+  overflow: auto hidden;
+}
+
+mjx-container[display="true"] + br {
+  display: none;
+}
+</style></head><body><header><div class="top-nav" ondblclick="scrollToTop()"><div class="nav-info"><div class="nav-icon"><img id="nav-icon" src="/img/site-icon.png"/></div><div class="nav-title"><a id="nav-title" href="/" title="主页">Sine' Website</a></div></div><div class="nav-ribbon"><div class="top-menu-expanded"><a class="top-menu-item" href="/archives"><span>归档</span></a><a class="top-menu-item" href="/categories"><span>分类</span></a><a class="top-menu-item" href="/tags"><span>标签</span></a><a class="top-menu-item" href="/notes"><span>笔记</span></a><a class="top-menu-item" href="/about"><span>关于</span></a></div><div class="top-search" onclick="toggleSearchWindow()"><div id="top-search-btn" title="搜索"><i class="icon fa-solid fa-magnifying-glass"></i><span>搜索</span></div></div><div id="top-menu-btn" onclick="openTopMenu()" title="打开菜单"><i class="fa-solid fa-bars fa-lg"></i></div></div></div></header><div id="top-menu-hidden"><div class="menu-hidden-content"><div class="menu-hidden-nav"><a class="menu-hidden-item" href="/archives"><i class="fa-solid fa-box-archive fa-sm"></i><span>归档</span></a><a class="menu-hidden-item" href="/categories"><i class="fa-regular fa-folder-open fa-sm"></i><span>分类</span></a><a class="menu-hidden-item" href="/tags"><i class="fa-solid fa-tags fa-sm"></i><span>标签</span></a><a class="menu-hidden-item" href="/notes"><i class="fa-solid fa-paw fa-sm"></i><span>笔记</span></a><a class="menu-hidden-item" href="/about"><i class="fa-solid fa-paw fa-sm"></i><span>关于</span></a></div></div><div class="menu-hidden-blank" onclick="closeTopMenu()"></div></div>
+<div class="blog-info"><div class="blog-pic"><img id="blog-pic" src="/img/site-icon.png"/></div><div class="blog-title"><i class="fa-solid fa-paw fa-2xs fa-rotate-by"></i><span>Sine' Website</span><i class="fa-solid fa-paw fa-2xs fa-rotate-by"></i></div><div class="blog-desc">记录强化学习、GPU/系统、AI 基础设施，以及一点具身智能相关的学习笔记。</div></div><div class="main"><div class="main-content"><article class="post"><div class="post-title"><h1><i class="fa-solid fa-paw"></i>Embodied intelligence notes 14 - benchmark design and reproducibility</h1></div><div class="post-info"><div class="post-info-first-line"><div class="post-date"><i class="icon fa-regular fa-calendar-plus" title="发布日期"></i><time class="publish-time">2026-06-25</time><i class="icon fa-regular fa-calendar-check" title="更新日期"></i><time class="update-time">2026-06-25</time></div>
+<div class="post-categories"><i class="icon fa-regular fa-folder-open" title="分类"></i><a class="post-category" href="/categories/%E5%85%B7%E8%BA%AB%E6%99%BA%E8%83%BD/">具身智能</a></div>
+<div class="post-tags"><i class="icon fa-solid fa-tags" title="标签"></i><a class="post-tag" href="/tags/Embodied-AI/">Embodied AI</a><i class="icon fa-solid fa-tags" title="标签"></i><a class="post-tag" href="/tags/Robotics/">Robotics</a><i class="icon fa-solid fa-tags" title="标签"></i><a class="post-tag" href="/tags/Evaluation/">Evaluation</a><i class="icon fa-solid fa-tags" title="标签"></i><a class="post-tag" href="/tags/Benchmark/">Benchmark</a><i class="icon fa-solid fa-tags" title="标签"></i><a class="post-tag" href="/tags/Reproducibility/">Reproducibility</a></div></div><div class="post-info-second-line"><div class="post-copyright"><i class="icon fa-brands fa-creative-commons" title="版权声明"></i><span>版权声明: </span><a target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-nd/4.0/deed.zh-hans" title="CC BY-NC-ND 4.0">署名-非商业性使用-禁止演绎 4.0</a></div>
+<div class="post-word-count"><i class="icon fa-solid fa-pen-to-square"></i><span>全文约1.5K字</span></div></div></div><div class="post-content"><p>前面写 evaluation
+时主要看单个策略怎么评估。这篇继续往外走一点：如果要设计一个具身智能
+benchmark，应该注意什么？</p>
+<p>机器人 benchmark 很难做。NLP 或 vision 里，给一个固定 test set
+就能比较很多模型；机器人里，环境、硬件、重置方式、相机位置、物体状态都会影响结果。</p>
+<p>所以 benchmark
+的价值不只是“排个榜”，更重要的是让结果可解释、可复现。</p>
+<h2 id="task-definition">task definition</h2>
+<p>第一个问题是任务到底是什么。</p>
+<p>比如“把杯子放到盘子上”，至少要定义：</p>
+<ul>
+<li>哪些杯子算目标</li>
+<li>盘子位置是否固定</li>
+<li>杯子初始姿态怎么采样</li>
+<li>成功条件是什么</li>
+<li>允许推还是必须抓</li>
+<li>中途碰到别的物体算不算失败</li>
+</ul>
+<p>如果这些不写清楚，两个系统都说 success rate
+90%，其实可能不是同一个任务。</p>
+<p>任务定义应该尽量具体，但也不能具体到只剩一个固定场景。不然 benchmark
+测的是记忆和过拟合，不是泛化。</p>
+<h2 id="initial-state-distribution">initial state distribution</h2>
+<p>初始状态分布很关键。</p>
+<p>机器人任务通常不是一个状态，而是一组状态：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">s_0 ~ p_initial(s)</span><br></pre></td></tr></table></figure>
+<p>这个分布决定任务难度。</p>
+<p>比如抓杯子：</p>
+<ul>
+<li>杯子永远在桌子中央，很简单</li>
+<li>杯子随机放在桌面不同位置，难一点</li>
+<li>杯子可能被部分遮挡，更难</li>
+<li>杯子和其他物体混在一起，再难一点</li>
+</ul>
+<p>如果 benchmark 只给一个固定初始状态，策略很容易学到场景特化技巧。</p>
+<p>所以报告结果时最好写清楚 initial state
+distribution，而不是只写任务名字。</p>
+<h2 id="success-condition">success condition</h2>
+<p>success condition 也要具体。</p>
+<p>比如放置任务：</p>
+<ul>
+<li>物体是否必须完全在目标区域内？</li>
+<li>是否要保持稳定几秒？</li>
+<li>允许轻微倾斜吗？</li>
+<li>机器人松手后才算成功，还是抓着也算？</li>
+<li>是否允许人类中途介入？</li>
+</ul>
+<p>这些细节会显著改变结果。</p>
+<p>一个好的 success condition
+应该尽量可自动判断，同时符合真实任务意义。如果条件太宽，策略会钻空子；条件太窄，评估又会过于脆。</p>
+<h2 id="trial-count">trial count</h2>
+<p>机器人实验贵，所以很多论文 trial 数不多。</p>
+<p>但 trial 太少时，success rate 很不稳定。比如 10 次里成功 8
+次，看起来是 80%，但置信区间其实很宽。</p>
+<p>更合理的报告方式至少包括：</p>
+<ul>
+<li>number of trials</li>
+<li>success count</li>
+<li>mean success rate</li>
+<li>confidence interval 或 bootstrap estimate</li>
+<li>每类环境扰动下的单独结果</li>
+</ul>
+<p>如果只给一个平均数，很难判断差异是否真实。</p>
+<h2 id="failure-taxonomy">failure taxonomy</h2>
+<p>只报告 success rate 不够，失败类型也要记录。</p>
+<p>比如：</p>
+<ul>
+<li>perception failure</li>
+<li>planning failure</li>
+<li>grasp failure</li>
+<li>collision</li>
+<li>slip</li>
+<li>timeout</li>
+<li>recovery failure</li>
+<li>unsafe stop</li>
+</ul>
+<p>这些失败类型对应不同改进方向。</p>
+<p>如果 A 策略失败主要是 perception，B 策略失败主要是
+collision，那么它们的下一步工作完全不同。只看总分会丢掉这些信息。</p>
+<p>failure taxonomy
+也能帮助数据闭环：下一批数据应该补哪类失败，不能靠猜。</p>
+<h2 id="intervention-protocol">intervention protocol</h2>
+<p>很多真实机器人评估都会有人类介入，但介入协议必须写清楚。</p>
+<p>需要定义：</p>
+<ul>
+<li>什么时候允许介入</li>
+<li>介入后 trial 是否继续</li>
+<li>介入算失败还是单独统计</li>
+<li>soft intervention 和 hard reset 是否区分</li>
+<li>emergency stop 是否单独计数</li>
+</ul>
+<p>如果一个系统成功率高但 intervention
+很多，不能和完全自主系统直接比较。</p>
+<p>所以 benchmark 里最好把 autonomy 和 success 分开报告：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">success rate</span><br><span class="line">intervention rate</span><br><span class="line">hard reset count</span><br><span class="line">emergency stop count</span><br></pre></td></tr></table></figure>
+<h2 id="environment-variation">environment variation</h2>
+<p>真实部署里的变化很多，benchmark 至少要覆盖一部分。</p>
+<p>常见 variation：</p>
+<ul>
+<li>lighting</li>
+<li>camera pose</li>
+<li>object pose</li>
+<li>distractor objects</li>
+<li>object category</li>
+<li>surface material</li>
+<li>mild occlusion</li>
+<li>sensor noise</li>
+</ul>
+<p>可以分层测试：</p>
+<ul>
+<li>clean setting</li>
+<li>mild shift</li>
+<li>hard shift</li>
+</ul>
+<p>这样能看出策略到底是基础能力不足，还是只对分布外变化敏感。</p>
+<p>这比混成一个平均分更有信息。</p>
+<h2 id="reproducibility-log">reproducibility log</h2>
+<p>机器人 benchmark 要可复现，日志很重要。</p>
+<p>至少应该记录：</p>
+<ul>
+<li>task config</li>
+<li>initial state seed 或采样参数</li>
+<li>object set</li>
+<li>camera setup</li>
+<li>robot model</li>
+<li>controller config</li>
+<li>policy checkpoint</li>
+<li>raw action</li>
+<li>executed action</li>
+<li>outcome</li>
+<li>failure label</li>
+</ul>
+<p>这些日志不一定全部公开，但系统内部必须保留。否则一旦结果异常，很难复盘。</p>
+<p>尤其是 runtime safety 那篇提到的 raw action / executed action
+差异，在 benchmark 里也应该记录。</p>
+<h2 id="sim-benchmark-vs-real-benchmark">sim benchmark vs real
+benchmark</h2>
+<p>仿真 benchmark 和真实 benchmark 各有价值。</p>
+<p>仿真：</p>
+<ul>
+<li>便宜</li>
+<li>可并行</li>
+<li>容易复现</li>
+<li>可以测试大量随机状态</li>
+</ul>
+<p>真实：</p>
+<ul>
+<li>更接近部署</li>
+<li>暴露硬件和接触问题</li>
+<li>评估 sim-to-real gap</li>
+<li>成本高、噪声大</li>
+</ul>
+<p>我觉得两者不应该互相替代。仿真适合快速比较方法，真实评估适合确认系统是否真的可用。</p>
+<p>如果一个方法只在 sim
+里很好，还不能说明能部署；如果只在一个真实场景里很好，也不能说明泛化。</p>
+<h2 id="leaderboard-risk">leaderboard risk</h2>
+<p>benchmark 一旦变成 leaderboard，就会有优化指标的倾向。</p>
+<p>这不是坏事，但要小心：</p>
+<ul>
+<li>过拟合固定任务</li>
+<li>忽略安全和干预成本</li>
+<li>只优化平均成功率</li>
+<li>少报失败细节</li>
+<li>用复杂工程 trick 淹没方法本身</li>
+</ul>
+<p>所以 benchmark 最好不要只有一个总分。可以分成几个维度：</p>
+<ul>
+<li>task success</li>
+<li>robustness</li>
+<li>autonomy</li>
+<li>safety</li>
+<li>recovery</li>
+<li>efficiency</li>
+</ul>
+<p>这样结果更难被一个数字掩盖。</p>
+<h2 id="小结">小结</h2>
+<p>具身智能 benchmark 可以先记：</p>
+<ul>
+<li>任务定义、初始状态分布和成功条件必须写清楚</li>
+<li>trial count 太少时，success rate 信息有限</li>
+<li>failure taxonomy 比单一平均分更有用</li>
+<li>intervention protocol 要独立报告</li>
+<li>environment variation 应该分层测试</li>
+<li>reproducibility log 是后续复盘的基础</li>
+<li>sim benchmark 和 real benchmark 互补</li>
+<li>leaderboard 不应该只看一个总分</li>
+</ul>
+<p>机器人评估最怕“数字看起来很干净，但不知道发生了什么”。好的 benchmark
+应该让失败也有信息，让下一步改进有方向。</p>
+</div><div class="post-end"><div class="post-prev"></div><div class="post-next"><a href="/2026/06/23/embodied-intelligence-notes-13-task-planning/" title="下一篇文章"><i class="fa-solid fa-chevron-right fa-lg"></i></a></div></div></article><div id="post-toc"><aside class="toc-aside"><div class="toc-title"><span><i class="fa-solid fa-paw"></i>目录</span></div><div class="toc-container" id="toc-body"><ol class="toc-content"><li class="toc-content-item toc-content-level-2"><a class="toc-content-link" href="#task-definition"><span class="toc-content-number">1.</span> <span class="toc-content-text">task definition</span></a></li><li class="toc-content-item toc-content-level-2"><a class="toc-content-link" href="#initial-state-distribution"><span class="toc-content-number">2.</span> <span class="toc-content-text">initial state distribution</span></a></li><li class="toc-content-item toc-content-level-2"><a class="toc-content-link" href="#success-condition"><span class="toc-content-number">3.</span> <span class="toc-content-text">success condition</span></a></li><li class="toc-content-item toc-content-level-2"><a class="toc-content-link" href="#trial-count"><span class="toc-content-number">4.</span> <span class="toc-content-text">trial count</span></a></li><li class="toc-content-item toc-content-level-2"><a class="toc-content-link" href="#failure-taxonomy"><span class="toc-content-number">5.</span> <span class="toc-content-text">failure taxonomy</span></a></li><li class="toc-content-item toc-content-level-2"><a class="toc-content-link" href="#intervention-protocol"><span class="toc-content-number">6.</span> <span class="toc-content-text">intervention protocol</span></a></li><li class="toc-content-item toc-content-level-2"><a class="toc-content-link" href="#environment-variation"><span class="toc-content-number">7.</span> <span class="toc-content-text">environment variation</span></a></li><li class="toc-content-item toc-content-level-2"><a class="toc-content-link" href="#reproducibility-log"><span class="toc-content-number">8.</span> <span class="toc-content-text">reproducibility log</span></a></li><li class="toc-content-item toc-content-level-2"><a class="toc-content-link" href="#sim-benchmark-vs-real-benchmark"><span class="toc-content-number">9.</span> <span class="toc-content-text">sim benchmark vs real
+benchmark</span></a></li><li class="toc-content-item toc-content-level-2"><a class="toc-content-link" href="#leaderboard-risk"><span class="toc-content-number">10.</span> <span class="toc-content-text">leaderboard risk</span></a></li><li class="toc-content-item toc-content-level-2"><a class="toc-content-link" href="#%E5%B0%8F%E7%BB%93"><span class="toc-content-number">11.</span> <span class="toc-content-text">小结</span></a></li></ol></div></aside><div class="toc-blank" onclick="tocToggle()"></div></div></div></div><div id="tool-bar"><div id="tool-bar-main"><div id="tool-toggle" onclick="toolToggle()" title="设置"><i class="fa-solid fa-gear"></i></div><div id="toc-toggle" onclick="tocToggle()" title="目录"><i class="fa-solid fa-list-ul"></i></div><div id="back-to-top" onclick="scrollToTop()" title="返回顶部"><i class="fa-solid fa-chevron-up"></i></div></div><div id="tool-bar-more" style="display: none;"><div id="darkmode-switch" onclick="darkmodeSwitch()" title="深色模式"><i class="fa-solid fa-circle-half-stroke"></i></div><div id="font-size-increase" onclick="fontSizeIncrease()" title="放大字体"><i class="fa-solid fa-plus"></i></div><div id="font-size-decrease" onclick="fontSizeDecrease()" title="缩小字体"><i class="fa-solid fa-minus"></i></div></div></div><div id="search-panel"><div class="search-container"><div class="search-head"><div class="search-title"><span><i class="fa-solid fa-paw"></i>搜索</span></div><div class="search-close-btn" onclick="toggleSearchWindow()"><i class="fa-regular fa-circle-xmark"></i></div></div><div class="search-box"><i class="fa-solid fa-magnifying-glass"></i><input id="search-input" type="text" placeholder="请输入需要搜索的内容……" value=""/></div><div class="search-body"><div id="search-count">匹配结果数: </div><div id="search-result"></div><div id="search-result-empty">未搜索到匹配的文章。</div></div></div></div><footer><div class="footer-content"><div class="copyright-info"><i class="fa-regular fa-copyright fa-xs"></i><span>2025 - 2026 </span><a href="/about">Wu De</a><i class="fa-solid fa-cat fa-sm"></i><span>Powered by </span><a href="https://hexo.io/" target="_blank">Hexo</a><span> &amp; </span><a href="https://github.com/chanwj/hexo-theme-meow" target="_blank" title="v2.1.2">Theme Meow</a></div></div></footer>
+<script>const GLOBAL_CONFIG = {
+  comment: { theme: ''}
+}
+</script>
+<script src="/js/third-party/darkmode.js"></script>
+<script>var options = {
+  dark: '/css/darkmode.css',
+  startAt: '24:00',
+  endAt: '06:00',
+  checkSystemScheme: 'false',
+  saveOnToggle: 'true'
+};
+var darkMode = new DarkMode(options);
+// change comment theme synchronously 同步修改评论区主题
+if (darkMode.getMode() == "dark" && (false || false)) {
+  if (document.getElementById('comment')) {
+    document.getElementById('comment').getElementsByTagName('script')[0].setAttribute('data-theme', 'noborder_dark');
+  }
+}
+</script><script>if (localStorage.getItem('font-size')) {
+  document.querySelector('.post-content').style.fontSize = localStorage.getItem('font-size') + 'px';
+}
+</script>
+<script src="/js/theme/tool-bar.js"></script>
+
+
+<script src="/js/theme/menu.js"></script>
+
+
+<script src="/js/third-party/clipboard.min.js"></script>
+
+
+<script src="/js/theme/copy.js"></script>
+<script>copyCode();
+</script>
+<script src="/js/jquery-3.7.1.min.js"></script>
+
+
+<script src="/js/theme/search.js"></script>
+<script>searchFunc('/search.xml', 'search-input', 'search-result');
+</script></body></html>
